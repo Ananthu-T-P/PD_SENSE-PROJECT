@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroLoop — Understanding Parkinson's, measuring it</title>
+<meta name="description" content="A scroll-driven explanation of what Parkinson's disease does to the brain, and the wristband we built to measure it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14120F;
+  --paper:#EDE7DC;
+  --tissue:#B23A2E;
+  --dopamine:#3E6E5E;
+  --line:#C9C0AE;
+  --fog:#8A8474;
+  --serif:"Fraunces",Georgia,serif;
+  --sans:"Public Sans",-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--tissue);color:var(--paper)}
+a{color:var(--tissue)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--tissue);outline-offset:3px}
+
+/* ---------- Nav ---------- */
+header.site-nav{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:1.1rem 2rem;
+  background:rgba(237,231,220,.85);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+.wordmark{font-family:var(--serif);font-weight:600;font-size:1.15rem;letter-spacing:.01em;text-decoration:none;color:var(--ink)}
+.nav-actions{display:flex;gap:.75rem;align-items:center}
+.btn{
+  font-family:var(--sans);font-size:.9rem;font-weight:500;
+  padding:.55rem 1.1rem;border-radius:999px;cursor:pointer;
+  border:1px solid var(--ink);background:transparent;color:var(--ink);
+  transition:background .15s,color .15s;
+}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn.primary{background:var(--tissue);border-color:var(--tissue);color:var(--paper)}
+.btn.primary:hover{background:#962f25;border-color:#962f25}
+
+/* ---------- Hero: 3D brain ---------- */
+#hero{
+  position:relative;height:400vh; /* scroll runway */
+}
+#hero .sticky{
+  position:sticky;top:0;height:100vh;overflow:hidden;
+  display:flex;align-items:center;
+}
+#brain-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-copy{
+  position:relative;z-index:2;max-width:34rem;
+  padding:0 2rem;margin-left:6vw;pointer-events:none;
+}
+.hero-copy h1{
+  font-family:var(--serif);font-weight:600;
+  font-size:clamp(2.2rem,4.5vw,3.8rem);
+  line-height:1.08;letter-spacing:-.01em;
+}
+.hero-copy p{margin-top:1.25rem;font-size:1.05rem;color:var(--fog);max-width:30rem}
+.stage-label{
+  position:absolute;z-index:3;font-size:.85rem;color:var(--ink);
+  background:rgba(237,231,220,.9);border:1px solid var(--line);
+  padding:.3rem .7rem;border-radius:4px;
+  transform:translate(-50%,-140%);white-space:nowrap;
+  opacity:0;transition:opacity .2s;
+}
+.stage-label strong{font-weight:700}
+.stage-caption{
+  position:absolute;left:6vw;bottom:8vh;z-index:2;max-width:30rem;
+  opacity:0;
+}
+.stage-caption h2{font-family:var(--serif);font-size:1.6rem;font-weight:600;margin-bottom:.5rem}
+.stage-caption p{color:var(--fog);font-size:.98rem}
+.scroll-hint{
+  position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
+  font-size:.8rem;color:var(--fog);z-index:2;letter-spacing:.05em;
+}
+
+/* ---------- Narrative ---------- */
+main{max-width:72rem;margin:0 auto;padding:0 2rem}
+section.stage{
+  display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+  gap:4rem;align-items:center;
+  padding:6rem 0;border-top:1px solid var(--line);
+}
+.stage-num{
+  font-family:var(--serif);font-size:1rem;color:var(--tissue);
+  display:block;margin-bottom:1rem;
+}
+.stage h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.7rem,3vw,2.4rem);line-height:1.15;letter-spacing:-.01em;margin-bottom:1.25rem}
+.stage p{max-width:62ch;color:var(--ink);margin-bottom:1rem}
+.stage .note{font-size:.9rem;color:var(--fog)}
+figure{margin:0}
+figcaption{font-size:.85rem;color:var(--fog);margin-top:.75rem}
+.stage svg{width:100%;height:auto;display:block}
+
+/* ---------- Device ---------- */
+section.device{padding:6rem 0;border-top:1px solid var(--line)}
+.device-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:4rem;align-items:center}
+.device h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.9rem,3.4vw,2.6rem);line-height:1.12;margin-bottom:1.25rem}
+.device p{max-width:62ch;margin-bottom:1rem}
+.device ul{list-style:none;margin:1.25rem 0 1.75rem}
+.device li{padding:.6rem 0;border-top:1px solid var(--line);font-size:.95rem}
+.device li:last-child{border-bottom:1px solid var(--line)}
+.device li strong{font-weight:700}
+.device-img{width:100%;border:1px solid var(--line);display:block}
+.disclaimer{font-size:.85rem;color:var(--fog);border-left:2px solid var(--tissue);padding-left:1rem;margin-top:2rem;max-width:60ch}
+
+/* ---------- Footer ---------- */
+footer{border-top:1px solid var(--line);padding:2.5rem 2rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;font-size:.85rem;color:var(--fog)}
+footer a{color:var(--fog)}
+
+/* ---------- Auth modal ---------- */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(20,18,15,.45);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:1rem;
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  background:var(--paper);border:1px solid var(--line);
+  max-width:22rem;width:100%;padding:2rem;position:relative;
+}
+.modal h3{font-family:var(--serif);font-size:1.4rem;font-weight:600;margin-bottom:.5rem}
+.modal p{font-size:.92rem;color:var(--fog);margin-bottom:1.25rem}
+.modal input{
+  width:100%;padding:.65rem .85rem;margin-bottom:.75rem;font-size:.95rem;
+  border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:4px;font-family:var(--sans);
+}
+.modal input:focus{outline:2px solid var(--tissue);outline-offset:1px}
+.modal .close{
+  position:absolute;top:.75rem;right:.9rem;background:none;border:none;
+  font-size:1.3rem;cursor:pointer;color:var(--fog);
+}
+.modal .btn{width:100%;margin-top:.25rem}
+.modal .switch{margin-top:1rem;font-size:.85rem;text-align:center;color:var(--fog)}
+.modal .switch button{background:none;border:none;color:var(--tissue);cursor:pointer;font-size:.85rem;text-decoration:underline}
+
+/* ---------- Static no-WebGL / reduced-motion fallback ---------- */
+#hero.static-fallback{height:auto}
+#hero.static-fallback .sticky{position:static;height:auto;display:block;padding:7rem 2rem 4rem}
+#hero.static-fallback .hero-copy{margin:0 0 3rem 0;padding:0;max-width:40rem}
+#hero.static-fallback .stage-caption{position:static;opacity:1;margin-top:2rem}
+#hero.static-fallback .scroll-hint{display:none}
+.fallback-diagram{display:none;margin:2rem 0;max-width:34rem}
+#hero.static-fallback .fallback-diagram{display:block}
+
+@media (max-width:820px){
+  section.stage,.device-grid{grid-template-columns:1fr;gap:2rem}
+  .hero-copy{margin-left:0;max-width:26rem}
+}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="wordmark" href="#top">NeuroLoop</a>
+  <div class="nav-actions">
+    <button class="btn" id="login-btn" type="button">Log in</button>
+    <button class="btn primary" id="signup-btn" type="button">Sign up</button>
+  </div>
+</header>
+
+<!-- ============ HERO: scroll-scrubbed brain explode ============ -->
+<section id="hero">
+  <div class="sticky">
+    <canvas id="brain-canvas" aria-hidden="true"></canvas>
+
+    <div class="hero-copy">
+      <h1>What Parkinson's takes, one structure at a time.</h1>
+      <p>Scroll to look inside the brain, down to the few hundred thousand cells whose loss sets the disease in motion.</p>
+    </div>
+
+    <div class="stage-label" id="lbl-cerebrum"><strong>Cerebrum</strong> — voluntary movement starts here</div>
+    <div class="stage-label" id="lbl-cerebellum"><strong>Cerebellum</strong> — coordination and balance</div>
+    <div class="stage-label" id="lbl-brainstem"><strong>Brainstem</strong> — houses the substantia nigra</div>
+    <div class="stage-label" id="lbl-nigra"><strong>Substantia nigra</strong> — Parkinson's starts here</div>
+
+    <div class="stage-caption" id="cap-separate">
+      <h2>Separation</h2>
+      <p>The brain resolves into its major parts — cerebrum, cerebellum, brainstem — so we can reach the structure that matters here.</p>
+    </div>
+    <div class="stage-caption" id="cap-nigra">
+      <h2>The substantia nigra</h2>
+      <p>A small band of dopamine-producing neurons in the midbrain. In Parkinson's, the majority of these cells are lost before the first tremor ever appears.</p>
+    </div>
+
+    <!-- static fallback diagram (shown when WebGL unavailable or reduced motion) -->
+    <svg class="fallback-diagram" viewBox="0 0 360 260" role="img" aria-label="Labeled brain diagram">
+      <path d="M80 70 Q40 130 70 180 Q120 220 210 200 Q200 150 190 110 Q150 60 80 70 Z" fill="none" stroke="#14120F" stroke-width="2"/>
+      <path d="M210 200 Q260 190 250 160 Q220 150 205 165" fill="none" stroke="#14120F" stroke-width="2"/>
+      <line x1="205" y1="165" x2="212" y2="230" stroke="#14120F" stroke-width="2"/>
+      <circle cx="206" cy="196" r="7" fill="#B23A2E"/>
+      <text x="30" y="50" font-size="11" fill="#14120F" font-family="Public Sans">Cerebrum</text>
+      <text x="262" y="160" font-size="11" fill="#14120F" font-family="Public Sans">Cerebellum</text>
+      <text x="225" y="245" font-size="11" fill="#14120F" font-family="Public Sans">Brainstem</text>
+      <text x="235" y="200" font-size="11" fill="#B23A2E" font-family="Public Sans" font-weight="700">Substantia nigra</text>
+    </svg>
+
+    <div class="scroll-hint">Scroll to explore</div>
+  </div>
+</section>
+
+<!-- ============ NARRATIVE ============ -->
+<main id="top">
+
+  <section class="stage">
+    <div>
+      <span class="stage-num">01</span>
+      <h2>The substantia nigra, when it works</h2>
+      <p>Deep in the midbrain sits a thin, darkly pigmented band of neurons — the substantia nigra, "black substance," named for the neuromelanin in its cells. These neurons produce dopamine and deliver it to the basal ganglia, the cluster of structures that helps the brain select and start movements.</p>
+      <p>Every time you reach for a cup, take a first step, or swing your arms as you walk, that dopamine signal is part of what lets the movement begin smoothly and automatically, without conscious effort.</p>
+    </div>
+    <figure>
+      <svg viewBox="0 0 300 220" aria-label="Healthy dopamine pathway diagram">
+        <line x1="60" y1="170" x2="240" y2="60" stroke="#3E6E5E" stroke-width="3"/>
+        <circle cx="60" cy="170" r="10" fill="#3E6E5E"/>
+        <circle cx="240" cy="60" r="10" fill="#3E6E5E"/>
+        <circle cx="105" cy="142" r="4" fill="#3E6E5E"/>
+        <circle cx="150" cy="115" r="4" fill="#3E6E5E"/>
+        <circle cx="195" cy="87" r="4" fill="#3E6E5E"/>
+        <text x="28" y="200" font-size="11" fill="#14120F" font-family="Public Sans">Substantia nigra</text>
+        <text x="200" y="40" font-size="11" fill="#14120F" font-family="Public Sans">Basal ganglia</text>
+      </svg>
+      <figcaption>A healthy pathway: dopamine flows steadily from the substantia nigra to the basal ganglia.</figcaption>
+    </figure>
+  </section>
+
+  <section class="stage">
+    <div>
+      <span class="stage-num">02</span>
+      <h2>What degrades</h2>
+      <p>In Parkinson's disease, the dopamine-producing neurons of the substantia nigra progressively die. As dopamine delivery to the basal ganglia falls, the brain's ability to initiate and regulate movement erodes with it. This is not damage spread across the brain — it is concentrated loss in one small, specific structure.</p>
+      <p class="note">By the time motor symptoms become noticeable, a substantial share of these neurons is already gone — which is why the disease can be underway for years before anyone sees it.</p>
+    </div>
+    <figure>
+      <svg viewBox="0 0 300 220" aria-label="Degraded dopamine pathway diagram">
+        <line x1="60" y1="170" x2="240" y2="60" stroke="#8A8474" stroke-width="2" stroke-dasharray="5 7"/>
+        <circle cx="60" cy="170" r="10" fill="#B23A2E"/>
+        <circle cx="240" cy="60" r="10" fill="#3E6E5E"/>
+        <circle cx="140" cy="122" r="4" fill="#B23A2E"/>
+        <text x="28" y="200" font-size="11" fill="#B23A2E" font-family="Public Sans" font-weight="700">Substantia nigra</text>
+        <text x="200" y="40" font-size="11" fill="#14120F" font-family="Public Sans">Basal ganglia</text>
+        <text x="90" y="95" font-size="10" fill="#8A8474" font-family="Public Sans">dopamine signal fading</text>
+      </svg>
+      <figcaption>Cell loss in the substantia nigra (marked in red) starves the pathway of dopamine.</figcaption>
+    </figure>
+  </section>
+
+  <section class="stage">
+    <div>
+      <span class="stage-num">03</span>
+      <h2>What that causes in the body</h2>
+      <p><strong>Resting tremor</strong> — a rhythmic shaking, often starting in one hand, that appears when the limb is at rest and eases with deliberate movement.</p>
+      <p><strong>Bradykinesia</strong> — slowness of movement. Buttoning a shirt or typing takes visibly longer; fine motor tasks lose their automatic ease.</p>
+      <p><strong>Rigidity</strong> — muscle stiffness that resists movement and can ache.</p>
+      <p><strong>Postural instability</strong> — impaired balance and a tendency to fall.</p>
+      <p><strong>Freezing of gait</strong> — the feet briefly refuse to move, as if glued to the floor, most often when starting to walk, turning, or passing through a doorway.</p>
+      <p class="note">These are measurable, physical signals — which is exactly why a wearable sensor can track them.</p>
+    </div>
+    <figure>
+      <svg viewBox="0 0 300 220" aria-label="Tremor waveform comparison">
+        <path d="M20 60 Q60 58 90 62 T160 60 T230 61 T290 60" fill="none" stroke="#3E6E5E" stroke-width="2"/>
+        <path d="M20 160 Q35 140 50 160 T90 160 T130 160 T170 160 T210 160 T250 160 T290 160" fill="none" stroke="#B23A2E" stroke-width="2"/>
+        <text x="20" y="40" font-size="11" fill="#3E6E5E" font-family="Public Sans">Steady hand</text>
+        <text x="20" y="135" font-size="11" fill="#B23A2E" font-family="Public Sans">Parkinsonian tremor (rhythmic)</text>
+      </svg>
+      <figcaption>Acceleration measured at the wrist: a steady hand versus a rhythmic resting tremor.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ DEVICE ============ -->
+  <section class="device">
+    <div class="device-grid">
+      <div>
+        <h2>So we built a wristband that measures it.</h2>
+        <p><strong>PD-SENSE</strong> is a wrist-worn monitor, built on an ESP32 with an MPU6050 motion sensor, that runs short guided tests — tremor, finger-tap, gait — and scores the result on the spot with sound and haptic feedback.</p>
+        <ul>
+          <li><strong>Tremor scoring.</strong> FFT-based detection of the rhythmic 3–7&nbsp;Hz band characteristic of Parkinsonian tremor.</li>
+          <li><strong>Bradykinesia grading.</strong> Timed tapping tests quantify slowing and fatigue of repetitive movement.</li>
+          <li><strong>Gait and freezing detection.</strong> Cadence analysis flags freeze episodes as they happen.</li>
+          <li><strong>Doctor-facing history.</strong> A companion portal polls the device and builds trend history against logged medication times, so a clinician sees patterns over weeks — not a single appointment snapshot.</li>
+        </ul>
+        <a class="btn primary" href="#signup" id="device-cta">Request clinical access</a>
+      </div>
+      <figure>
+        <img class="device-img" src="../assets/images/PD_SENSE/PD_SENSE_MK1.jpg" alt="PD-SENSE Mk1 wrist-worn monitoring device" loading="lazy">
+        <figcaption>PD-SENSE Mk1 — the first working hardware revision, worn on the wrist.</figcaption>
+      </figure>
+    </div>
+    <p class="disclaimer">PD-SENSE measures and records motor symptoms. It does not diagnose, and it does not replace clinical judgment. Every trend it reports is a summary of measured movement for a clinician to interpret.</p>
+  </section>
+
+</main>
+
+<footer>
+  <span>NeuroLoop — a Parkinson's motor-symptom monitoring project.</span>
+  <span>Educational project. Not a medical device.</span>
+</footer>
+
+<!-- ============ AUTH MODAL (non-functional placeholder) ============ -->
+<div class="modal-backdrop" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+  <div class="modal">
+    <button class="close" id="auth-close" aria-label="Close">&times;</button>
+    <h3 id="auth-title">Log in</h3>
+    <p id="auth-desc">Clinician accounts are being rolled out. Sign-in will be enabled in the next release.</p>
+    <input type="email" placeholder="Email address" disabled>
+    <input type="password" placeholder="Password" disabled>
+    <button class="btn primary" id="auth-submit" type="button" disabled>Log in</button>
+    <div class="switch">No account yet? <button id="auth-toggle" type="button">Sign up</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+/* =========================================================
+   Auth modal (placeholder, non-functional)
+========================================================= */
+(function(){
+  const modal=document.getElementById('auth-modal');
+  const title=document.getElementById('auth-title');
+  const desc=document.getElementById('auth-desc');
+  const submit=document.getElementById('auth-submit');
+  const toggle=document.getElementById('auth-toggle');
+  let mode='login';
+  function open(m){mode=m;render();modal.classList.add('open');document.getElementById('auth-close').focus();}
+  function render(){
+    if(mode==='login'){title.textContent='Log in';desc.textContent='Clinician accounts are being rolled out. Sign-in will be enabled in the next release.';submit.textContent='Log in';toggle.textContent='Sign up';}
+    else{title.textContent='Create an account';desc.textContent='Clinician registration is not open yet. Leave your details with the team to be notified.';submit.textContent='Sign up';toggle.textContent='Log in';}
+  }
+  document.getElementById('login-btn').addEventListener('click',()=>open('login'));
+  document.getElementById('signup-btn').addEventListener('click',()=>open('signup'));
+  document.getElementById('device-cta').addEventListener('click',e=>{e.preventDefault();open('signup');});
+  toggle.addEventListener('click',()=>{mode=(mode==='login')?'signup':'login';render();});
+  document.getElementById('auth-close').addEventListener('click',()=>modal.classList.remove('open'));
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remove('open');});
+})();
+
+/* =========================================================
+   3D brain hero
+========================================================= */
+(function(){
+  const hero=document.getElementById('hero');
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function webglAvailable(){
+    try{const c=document.createElement('canvas');return !!(window.WebGLRenderingContext&&(c.getContext('webgl')||c.getContext('experimental-webgl')));}
+    catch(e){return false;}
+  }
+  if(reducedMotion||!webglAvailable()||typeof THREE==='undefined'||typeof gsap==='undefined'){
+    hero.classList.add('static-fallback');
+    return;
+  }
+
+  const canvas=document.getElementById('brain-canvas');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(38,1,0.1,100);
+  camera.position.set(0,0.4,9.5);
+
+  const inkMat =new THREE.MeshStandardMaterial({color:0xDAD2C2,roughness:.85,flatShading:true});
+  const greyMat=new THREE.MeshStandardMaterial({color:0xC4BBA8,roughness:.9,flatShading:true});
+  const tissueMat=new THREE.MeshStandardMaterial({color:0xB23A2E,roughness:.6,flatShading:true,emissive:0x40150f});
+  const healthyMat=new THREE.MeshStandardMaterial({color:0x3E6E5E,roughness:.6,flatShading:true});
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8a8474,0.9));
+  const key=new THREE.DirectionalLight(0xffffff,0.9);key.position.set(4,6,6);scene.add(key);
+
+  const brain=new THREE.Group();scene.add(brain);
+
+  // Cerebrum: two flattened, slightly bumpy spheres
+  const cerebrum=new THREE.Group();
+  [-1,1].forEach(side=>{
+    const geo=new THREE.SphereGeometry(1.55,10,9);
+    const pos=geo.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const v=new THREE.Vector3().fromBufferAttribute(pos,i);
+      v.y*=0.82; v.x*=0.85;
+      v.multiplyScalar(1+0.06*Math.sin(v.x*7)*Math.sin(v.y*6)*Math.sin(v.z*5)); // cortical ripple
+      pos.setXYZ(i,v.x,v.y,v.z);
+    }
+    geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,inkMat);
+    m.position.x=side*0.78;
+    cerebrum.add(m);
+  });
+  cerebrum.position.y=0.45;
+  brain.add(cerebrum);
+
+  // Cerebellum: small wrinkled sphere, rear-low
+  const cerGeo=new THREE.SphereGeometry(0.72,10,9);
+  { const p=cerGeo.attributes.position;
+    for(let i=0;i<p.count;i++){
+      const v=new THREE.Vector3().fromBufferAttribute(p,i);
+      v.multiplyScalar(1+0.08*Math.sin(v.y*18));
+      p.setXYZ(i,v.x,v.y,v.z);
+    } cerGeo.computeVertexNormals(); }
+  const cerebellum=new THREE.Mesh(cerGeo,greyMat);
+  cerebellum.position.set(0,-0.95,-0.95);
+  brain.add(cerebellum);
+
+  // Brainstem: angled cylinder down from center
+  const brainstem=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.36,1.7,9),greyMat);
+  brainstem.position.set(0,-1.35,0.15);
+  brainstem.rotation.x=0.35;
+  brain.add(brainstem);
+
+  // Substantia nigra pair (PD, red) + healthy reference (green)
+  const nigra=new THREE.Group();
+  const nigraPD=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),tissueMat);
+  nigraPD.position.set(-0.5,0,0);
+  nigraPD.scale.setScalar(0.65); // diminished
+  const nigraOK=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),healthyMat);
+  nigraOK.position.set(0.5,0,0);
+  nigra.add(nigraPD,nigraOK);
+  nigra.position.set(0,-0.55,0.55);
+  brain.add(nigra);
+
+  brain.rotation.y=-0.5;
+
+  // Rest offsets for the explode
+  const off={
+    cerebrum:new THREE.Vector3(0,1.5,-0.2),
+    cerebellum:new THREE.Vector3(1.6,-0.7,-1.8),
+    brainstem:new THREE.Vector3(-1.6,-0.6,-0.6),
+    nigra:new THREE.Vector3(0,0.4,1.4)
+  };
+
+  // HTML labels projected from 3D anchors
+  const labels=[
+    {el:document.getElementById('lbl-cerebrum'),obj:cerebrum,from:0.28,to:0.52},
+    {el:document.getElementById('lbl-cerebellum'),obj:cerebellum,from:0.28,to:0.52},
+    {el:document.getElementById('lbl-brainstem'),obj:brainstem,from:0.28,to:0.52},
+    {el:document.getElementById('lbl-nigra'),obj:nigra,from:0.55,to:0.88}
+  ];
+  const captions=[
+    {el:document.getElementById('cap-separate'),from:0.3,to:0.52},
+    {el:document.getElementById('cap-nigra'),from:0.58,to:0.92}
+  ];
+
+  let progress=0;
+  const tmp=new THREE.Vector3();
+
+  function resize(){
+    const w=hero.clientWidth,h=window.innerHeight;
+    renderer.setSize(w,h,false);
+    camera.aspect=w/h;camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize',resize);resize();
+
+  const ease=t=>t*t*(3-2*t); // smoothstep
+  function sub(a,b,t){return ease(Math.min(1,Math.max(0,(t-a)/(b-a))));}
+
+  function applyState(t){
+    const sep=sub(0.15,0.55,t);       // explode amount
+    const push=sub(0.55,0.85,t);      // camera push into nigra
+
+    cerebrum.position.copy(new THREE.Vector3(0,0.45,0)).addScaledVector(off.cerebrum,sep);
+    cerebellum.position.copy(new THREE.Vector3(0,-0.95,-0.95)).addScaledVector(off.cerebellum,sep);
+    brainstem.position.copy(new THREE.Vector3(0,-1.35,0.15)).addScaledVector(off.brainstem,sep);
+    nigra.position.copy(new THREE.Vector3(0,-0.55,0.55)).addScaledVector(off.nigra,sep);
+
+    brain.rotation.y=-0.5+t*1.4;
+    brain.rotation.x=0.12*sep;
+
+    camera.position.set(0, 0.4-0.8*push, 9.5-6.7*push);
+    tmp.set(0, -0.4*push-0.15*sep, 1.4*push*sep+0.4*push);
+    camera.lookAt(tmp);
+
+    // nigra grows to dominate at the end; healthy ref alongside
+    nigraPD.scale.setScalar(0.65+0.35*push);
+    tissueMat.emissiveIntensity=0.4+1.2*push;
+
+    labels.forEach(l=>{
+      l.obj.getWorldPosition(tmp);tmp.project(camera);
+      const x=(tmp.x*0.5+0.5)*hero.clientWidth;
+      const y=(-tmp.y*0.5+0.5)*window.innerHeight;
+      l.el.style.left=x+'px';l.el.style.top=y+'px';
+      l.el.style.opacity=(t>=l.from&&t<=l.to)?1:0;
+    });
+    captions.forEach(c=>{
+      c.el.style.opacity=(t>=c.from&&t<=c.to)?Math.min(1,(t-c.from)/0.06):0;
+    });
+  }
+
+  // Slow idle rotation in stage 0 only (0–15%)
+  let idleT=0;
+  function render(){
+    idleT+=0.002;
+    if(progress<0.15)brain.rotation.y+=0.0012;
+    applyState(progress);
+    renderer.render(scene,camera);
+    requestAnimationFrame(render);
+  }
+
+  gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.create({
+    trigger:'#hero',start:'top top',end:'bottom bottom',scrub:true,
+    onUpdate:self=>{progress=self.progress;}
+  });
+  render();
+})();
+</script>
+</body>
+</html>
