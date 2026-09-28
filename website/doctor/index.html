@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-SENSE — Doctor Portal</title>
+<meta name="description" content="PD-SENSE doctor portal: persistent patient history, trends, events and observational summaries from the PD-SENSE backend.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="wordmark" href="../">PD-SENSE <span class="thin">/ Doctor Portal</span></a>
+  <div class="topbar-right">
+    <select id="patient-select" aria-label="Select patient"></select>
+    <select id="range-select" aria-label="Time range">
+      <option value="24h">24 hours</option>
+      <option value="48h">48 hours</option>
+      <option value="7d" selected>7 days</option>
+      <option value="30d">30 days</option>
+    </select>
+    <span class="badge mono" id="conn-badge">CONNECTING</span>
+    <span class="clock mono" id="clock"></span>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="status-panel">
+    <div class="status-grid" id="status-grid"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Summary <span class="dim" id="sum-range"></span></h2>
+      <p class="panel-sub">Derived from stored device data only. Observational language — recorded alignments are not causation.</p></div>
+    </div>
+    <div id="summary-body" class="summary-body">Loading…</div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Trends</h2>
+      <p class="panel-sub">Bucketed averages over the selected range. Empty buckets mean missing data, not zero symptoms.</p></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-wrap"><canvas id="chart-tremor"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-freq"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-cadence"></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel two-col">
+    <div>
+      <h2>Freeze &amp; alert events</h2>
+      <div id="events-body" class="list"></div>
+    </div>
+    <div>
+      <h2>Recorded medication events</h2>
+      <div id="meds-body" class="list"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Tap tests &amp; bradykinesia history</h2>
+      <p class="panel-sub">Device tap tests. INCOMPLETE tests have no grade.</p></div></div>
+    <div class="rt-scroll">
+      <table class="rt-table">
+        <thead><tr><th>Completed</th><th>Taps</th><th>Duration</th><th>Grade</th><th>Quality</th></tr></thead>
+        <tbody id="tap-body"></tbody>
+      </table>
+      <p class="log-empty" id="tap-empty" style="display:none">No tap tests recorded.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Recent readings</h2><p class="panel-sub">Newest 50 telemetry rows for this patient.</p></div>
+      <button class="btn" id="export-csv" type="button">Export CSV</button>
+    </div>
+    <div class="rt-scroll">
+      <table class="rt-table">
+        <thead><tr><th>Time</th><th>Tremor</th><th>Freq</th><th>Quality</th><th>Gait</th><th>Cadence</th><th>Freeze</th></tr></thead>
+        <tbody id="readings-body"></tbody>
+      </table>
+      <p class="log-empty" id="readings-empty" style="display:none">No readings in range.</p>
+    </div>
+  </section>
+
+  <div class="empty-state" id="empty-state" hidden></div>
+</main>
+
+<footer>
+  <span>PD-SENSE Doctor Portal — observational device data for review by a clinician.</span>
+  <span class="dim">Not a diagnostic tool. Medication events are gesture records from the device.</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="../live-monitor/js/config.js"></script>
+<script src="../live-monitor/js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

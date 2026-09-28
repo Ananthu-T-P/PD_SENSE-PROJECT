@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-SENSE — Live Monitor</title>
+<meta name="description" content="PD-SENSE live monitoring console: real ESP32 telemetry — tremor-band activity, gait state, cadence, events — instrumented end to end.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- ======================= HEADER ======================= -->
+<header class="topbar">
+  <a class="wordmark" href="../">PD-SENSE <span class="thin">/ Live Monitor</span></a>
+  <div class="topbar-right">
+    <span class="live-badge live" id="live-badge"><span class="dot ok"></span> CONNECTING</span>
+    <div class="hdr-meta-block">
+      <span id="hdr-meta"></span>
+      <span id="hdr-updated" class="dim"></span>
+    </div>
+    <span class="clock mono" id="clock"></span>
+  </div>
+</header>
+
+<div class="demo-banner" id="demo-banner" hidden>
+  DEMO DATA — synthetic values for presentation mode (?mode=demo). No real device connected. Nothing here is a measurement.
+</div>
+
+<main>
+
+  <!-- ============== LIVE SYSTEM VISUALIZATION ============== -->
+  <section class="panel" id="viz-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Live system</h2>
+        <p class="panel-sub">The actual data path. A packet travels the pipeline when a real reading arrives.</p>
+      </div>
+    </div>
+    <div class="viz-grid">
+      <canvas id="pipeline-canvas" aria-label="telemetry pipeline: MPU6050 to ESP32 to API to database to monitor"></canvas>
+      <div class="device-3d" id="device-3d" aria-hidden="true">
+        <div class="scene-fallback" hidden>
+          <svg viewBox="0 0 240 120" role="img" aria-label="wrist device diagram">
+            <rect x="70" y="30" width="100" height="60" rx="8" fill="#22282f" stroke="#3E6E5E"/>
+            <rect x="88" y="42" width="64" height="36" rx="3" fill="#0a0f14" stroke="#2c3640"/>
+            <text x="120" y="64" text-anchor="middle" fill="#9fd3c4" font-size="10" font-family="monospace">PD-SENSE</text>
+            <rect x="10" y="48" width="60" height="24" rx="12" fill="#2f3a44"/>
+            <rect x="170" y="48" width="60" height="24" rx="12" fill="#2f3a44"/>
+            <text x="120" y="108" text-anchor="middle" fill="#76838d" font-size="9" font-family="Inter">MPU6050 + APDS9960 + SSD1306 — MYOSA stack</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="dbg-hud mono" id="dbg-gfx" hidden></div>
+  </section>
+
+  <!-- ============== CURRENT METRICS ============== -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Current metrics</h2>
+        <p class="panel-sub">Latest received reading. N/A means the device sent no valid value — invalid data is never drawn as zero.</p>
+      </div>
+    </div>
+    <div class="metrics-grid" id="metrics-grid">
+      <div class="metric-card" id="ig-tremor"></div>
+      <div class="metric-card" id="ig-freq"></div>
+      <div class="metric-card" id="ig-gait"></div>
+      <div class="metric-card" id="ig-cadence"></div>
+      <div class="metric-card" id="ig-brady"></div>
+    </div>
+  </section>
+
+  <!-- ============== LIVE SIGNALS (charts) ============== -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Live signals</h2>
+        <p class="panel-sub">Same records as the table below. Gaps in the line are missing/invalid windows — the chart never connects through them.</p>
+      </div>
+      <div class="range-selector" id="range-selector">
+        <button data-range="1h">1h</button>
+        <button data-range="24h" class="active">24h</button>
+        <button data-range="48h">48h</button>
+        <button data-range="7d">7d</button>
+        <button data-range="30d">30d</button>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-wrap"><canvas id="chart-tremor"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-freq"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-cadence"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-jerk"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-rms"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ============== EVENTS ============== -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Events</h2>
+        <p class="panel-sub">Freeze episodes, device medication-gesture records, tap-test results and backend alerts — one timeline.</p>
+      </div>
+    </div>
+    <div class="events-timeline" id="events-timeline"></div>
+  </section>
+
+  <!-- ============== LIVE ESP32 READINGS ============== -->
+  <section class="panel" id="sec-readings">
+    <div class="panel-head">
+      <div>
+        <h2>Live ESP32 readings</h2>
+        <p class="panel-sub">SOURCE: ESP32 / PD-SENSE DEVICE — every row below is one telemetry packet the device actually sent.</p>
+      </div>
+      <div class="rt-controls" id="rt-controls">
+        <button class="btn small" id="rt-cols" type="button">Columns</button>
+        <select id="rt-size" title="Rows shown"></select>
+        <button class="btn small" id="rt-csv" type="button">Export CSV</button>
+      </div>
+    </div>
+    <button class="newdata-banner" id="rt-newdata" hidden></button>
+    <div class="rt-scroll" id="rt-scroll">
+      <table class="rt-table">
+        <thead id="rt-head"></thead>
+        <tbody id="rt-body"></tbody>
+      </table>
+      <p class="log-empty" id="rt-empty" style="display:none">No packets from the device yet.</p>
+    </div>
+    <div class="rt-foot">
+      <button class="btn" id="rt-more" type="button">Load more (older)</button>
+    </div>
+    <div class="rt-detail" id="rt-detail" hidden></div>
+  </section>
+
+  <!-- ============== DEVICE HEALTH ============== -->
+  <section class="panel two-col">
+    <div>
+      <h2>Device health</h2>
+      <div class="health-panel" id="device-health"></div>
+    </div>
+    <div>
+      <h2>History summary <span class="dim">(selected range)</span></h2>
+      <div class="history-summary" id="history-summary">—</div>
+    </div>
+  </section>
+
+  <div class="empty-state" id="empty-state" hidden></div>
+  <div class="dbg-panel" id="dbg-data" hidden></div>
+
+</main>
+
+<aside class="info-drawer" id="info-drawer" hidden>
+  <div class="info-card">
+    <div class="info-head"><b id="info-title"></b><button class="btn small" id="info-close">close</button></div>
+    <div id="info-body"></div>
+    <p class="info-note">PD-SENSE records movement signals. It does not provide a medical diagnosis.</p>
+  </div>
+</aside>
+
+<footer>
+  <span>PD-SENSE Live Monitor — engineering instrumentation for a prototype movement monitor.</span>
+  <span class="dim">Observed / recorded / derived signals only. No diagnosis, no treatment claims.</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/state.js"></script>
+<script src="js/table.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/infographics.js"></script>
+<script src="js/events.js"></script>
+<script src="js/graphics.js"></script>
+<script src="js/diagnostics.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

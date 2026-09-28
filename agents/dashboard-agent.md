@@ -1,3 +1,17 @@
+<!--
+ SUPERSEDED — v7 rebuild
+ ---------------------------------------------------------------------------
+ This agent brief described the PRE-REBUILD architecture (ESP32 `/data`
+ endpoint, laptop poller, local-only device, Blynk-era constraints). Those
+ contracts no longer exist.
+
+ Current source of truth:
+   docs/ARCHITECTURE.md  — system diagram + rules
+   docs/FIRMWARE.md, docs/FIRMWARE_TELEMETRY.md, docs/SERIAL_COMMANDS.md
+   docs/API.md, docs/DATA_MODEL.md, docs/DASHBOARD.md, docs/DOCTOR_WEBSITE.md
+   docs/SECURITY.md, docs/DEPLOYMENT.md, docs/TROUBLESHOOTING.md
+ Build state: docs/BUILD_ORDER.md · audit baseline: docs/CURRENT_STATE.md
+-->
 # Agent scope: Local Wi-Fi Dashboard
 
 Full spec: [`../docs/DASHBOARD.md`](../docs/DASHBOARD.md).
@@ -5,13 +19,13 @@ Full spec: [`../docs/DASHBOARD.md`](../docs/DASHBOARD.md).
 ## You own
 
 - The single HTML/CSS/JS page served by the ESP32's web server (not hosted
-  anywhere external â€” it is served from device flash/memory).
+  anywhere external — it is served from device flash/memory).
 - Its `fetch('/data')` polling loop (~300 ms) and how it renders mode,
   tremor score, bradykinesia grade, and gait status.
 
 ## You do NOT own
 
-- The `/data` endpoint itself or its schema â€” that's `firmware-agent.md`.
+- The `/data` endpoint itself or its schema — that's `firmware-agent.md`.
   Treat the schema as a fixed external contract; if it needs to change,
   that's a firmware-spec change first.
 - Any account, login, or per-user view. This dashboard has exactly one
@@ -23,7 +37,7 @@ Full spec: [`../docs/DASHBOARD.md`](../docs/DASHBOARD.md).
 
 1. **No build step, no framework, no CDN dependency that could be
    unavailable offline.** This runs off an ESP32's local server for a
-   classroom/demo evaluator â€” plain HTML/CSS/vanilla JS only, embedded
+   classroom/demo evaluator — plain HTML/CSS/vanilla JS only, embedded
    directly, so it works with zero internet access.
 2. **Poll interval ~300 ms.** Faster adds load to the ESP32's single-core
    HTTP handling for no benefit; slower feels laggy against a live tremor
@@ -33,7 +47,7 @@ Full spec: [`../docs/DASHBOARD.md`](../docs/DASHBOARD.md).
    numbers with no indication they're stale.
 4. **Legible at a glance from across a room.** This will be read by a
    teacher or evaluator standing near a table, often on a phone screen
-   mirrored or a laptop â€” not a design showcase. Prioritize large, clear
+   mirrored or a laptop — not a design showcase. Prioritize large, clear
    current-value display over decoration.
 
 ## Definition of done for this piece
@@ -43,3 +57,4 @@ Full spec: [`../docs/DASHBOARD.md`](../docs/DASHBOARD.md).
   with no installed app.
 - A momentary Wi-Fi drop shows a visible "reconnecting" indicator, not a
   frozen or blank screen.
+

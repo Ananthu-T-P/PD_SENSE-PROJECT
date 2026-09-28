@@ -1,7 +1,15 @@
-# Ignore video files
-*.mp4
-*.mov
-*.avi
-*.mkv
-*.flv
-*.wmv
+# Secrets — never commit real values
+server/.env
+firmware/NeuroLoop_Core/config_local.h
+
+# Dependencies / build output
+node_modules/
+server/node_modules/
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Archives of other projects that live in this folder tree
+*.zip

@@ -312,6 +312,18 @@ plausible-sounding placeholder copy. At minimum, before shipping:
 
 ---
 
+## 7b. Data boundary (current, enforced)
+
+The public site carries NO patient data and no telemetry path. Live
+measurements flow only through: device -> PD-SENSE backend -> Supabase
+-> Live Monitor / Doctor Portal. The '04' section on the page links to
+the two consoles and states the prototype status. The old nl_outbox
+localStorage handoff and patient cards were removed in the v7 rebuild;
+do not reintroduce any localStorage/same-browser handshake.
+
+- Live monitor (technician console): docs/DASHBOARD.md
+- Doctor portal: docs/DOCTOR_WEBSITE.md
+- Data contracts: docs/DATA_MODEL.md · docs/API.md
 ## 8. Self-critique checklist before calling this done
 
 Before shipping, check the live page against this list — if any answer is

@@ -1,51 +1,32 @@
-# Build Order & Status
+# PD-SENSE — Build order & status
 
-## Agreed sequence
+The v7 rebuild executed the full stack in dependency order:
 
-1. **ESP32 firmware** — state machine, manual mode, buzzer/actuator
-   response, `/data` endpoint, local dashboard.
-   *(See `FIRMWARE.md` and `DASHBOARD.md`.)*
-2. **Doctor website** — poller, storage, comparison/analytics logic.
-   *(See `DOCTOR_WEBSITE.md`.)*
-3. **Alerts** — email / WhatsApp integration.
-   *(See `ALERTS.md`.)*
-4. **AI chatbot** — built last, since it depends on stored data existing
-   to answer questions from.
-   *(See `DOCTOR_WEBSITE.md`, chatbot section.)*
+1. ✅ Repository audit → `docs/CURRENT_STATE.md`
+2. ✅ Firmware: config / sensors / display / telemetry / coordinator
+   (state machines, serial console, OLED pages, telemetry queues,
+   dev-mode gating)
+3. ✅ Backend API (`server/`): health, device auth, ingest (idempotent),
+   reads, SSE, CSV, patients/summary/analytics, device registry seeding
+4. ✅ Database migration `supabase/migrations/0001_rebuild.sql` + RLS
+   lockdown + rollup function for the new schema
+5. ✅ Live Monitor rebuild (real-data-only, normalized contract, table/
+   charts/infographics/events/pipeline visualization)
+6. ✅ Doctor Portal (`website/doctor/`)
+7. ✅ Public site: patient feed removed, story-only
+8. ✅ Legacy isolation (`legacy/`, `supabase/legacy/`); dead modules deleted
+9. ✅ Backend automated tests (22 pass); syntax sweeps; boot smoke test
+10. ✅ Docs: API / DATA_MODEL / DEPLOYMENT / TROUBLESHOOTING / SECURITY /
+    SERIAL_COMMANDS / FIRMWARE_TELEMETRY + this file
+11. ⏳ **Hardware validation — REQUIRED, not done (no device attached here)**:
+    flash the firmware, run `test all`, walk through network-loss and
+    tap/medication/freeze scenarios (checklist in TESTER.md)
+12. ⏳ **With-credentials end-to-end**: fill Supabase keys + device token,
+    confirm ESP32 → backend → DB → live monitor on the bench
+    (docs/TROUBLESHOOTING.md checkpoint list)
 
-This order exists because each stage depends on the previous one having a
-stable, working output: the poller can't be tested against a `/data`
-schema that keeps changing; alerts need real stored history to trigger
-against; the chatbot needs enough accumulated history to be worth talking
-to.
+## What remains intentionally out of scope
 
-## Why this order, not something else
-
-- Firmware first because every other subsystem is a *client* of `/data` —
-  freezing that contract early avoids rework everywhere downstream.
-- Doctor website before alerts because alerts read from the doctor
-  website's stored history, not directly from the device.
-- Chatbot absolute last because a chatbot with no data to draw from just
-  produces confident-sounding nonsense, which directly conflicts with the
-  project's ground rule against fabricated clinical claims.
-
-## Current status
-
-| Item | Status |
-|---|---|
-| Firmware architecture (state machine, manual mode, `evaluateAndAct()`, `/data` schema) | Designed in detail, sketches exist, **not finalized as one complete file** |
-| Local dashboard | Designed, not built |
-| Doctor website (poller/storage/analytics/chatbot) | **Not yet built** |
-| Alerts integration | **Not yet built** |
-| Enclosure (`neuroloop_enclosure.scad`) | Designed parametrically, **dimensions not yet tuned to measured hardware** |
-| Public project website | Spec written (`website/WEBSITE.md`), not built |
-
-## Immediate next actions
-
-1. Finalize the ESP32 firmware as a single complete `.ino` file against
-   `FIRMWARE.md`, including the frozen `/data` schema.
-2. Physically assemble and measure the MYOSA stack + OLED module so
-   `neuroloop_enclosure.scad`'s parametric values can be set for a first
-   print — this can happen in parallel with firmware work since it
-   doesn't block software.
-3. Once `/data` is live and stable, build the poller against it.
+- On-device TinyML classifiers, LLM chatbot features (not part of v7).
+- Per-user clinical account auth (prototype uses a shared dashboard token).
+- Public-site scroll animation rework (see FIX_REPORT known limitations).

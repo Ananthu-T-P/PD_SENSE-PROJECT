@@ -1,94 +1,83 @@
-# Architecture
+# PD-SENSE / NeuroLoop — Architecture (v7, current)
 
-## Component map
+> This file describes the ACTUAL system. Rebuild implementation began from
+> the audit in `docs/CURRENT_STATE.md`; the change log and before/after
+> detail are in `docs/FIX_REPORT.md`.
+
+## System diagram (current)
 
 ```
- ┌────────────────────────┐
- │   MYOSA ESP32 Stack     │   Worn by patient
- │  (firmware, on-device)  │
- │                         │
- │  Sensors → state        │
- │  machine → scoring →    │
- │  evaluateAndAct()       │
- │  → buzzer / actuator    │
- │                         │
- │  WebServer.h            │
- │   GET /data  (JSON) ────┼────────────┐
- │   GET /      (dashboard)│            │
- └───────────┬─────────────┘            │
-             │ same local Wi-Fi         │ periodic GET
-             │                          │ (not continuous)
-   ┌─────────▼─────────┐      ┌─────────▼──────────────┐
-   │  Local dashboard   │      │   Doctor website        │
-   │  (any browser on   │      │   (poller + storage +   │
-   │   the Wi-Fi)        │      │   analytics + chatbot)  │
-   └────────────────────┘      └─────────┬───────────────┘
-                                          │ on sustained severe
-                                          │ tremor / unresolved
-                                          │ freeze
-                                ┌─────────▼───────────────┐
-                                │   Alerts (email/WhatsApp) │
-                                └───────────────────────────┘
-
-   ┌────────────────────────┐
-   │  Public project website │  (no connection to the device;
-   │  (3D scroll explainer)  │   educational content only)
-   └────────────────────────┘
+                        ┌──────────── MYOSA wrist device ─────────────┐
+ MPU6050 ──┐            │  sensors.cpp: 100 Hz sampling, FFT tremor  │
+ APDS9960 ─┼── I2C ────►│  band activity, tap detect, gait/freeze FSM│
+ SSD1306 ◄──┤  OLED     │  sensor quality + gait candidate states    │
+ buzzer ◄───┤  GPIO25   │  evaluateAndAct(): local cues only         │
+ haptic ◄───┘  GPIO26   │  telemetry.cpp: bounded queues, event_id,  │
+                        │  paced WiFi FSM, NTP, backoff              │
+                        └───────────────┬────────────────────────────┘
+                                        │ POST /api/v1/telemetry
+                                        │ X-Device-Id + X-Device-Token
+                                        ▼
+                        ┌──────── PD-SENSE BACKEND (server/) ────────┐
+                        │ deviceAuth (token hash, enabled, registry) │
+                        │ validation (ranges, types, event_id,       │
+                        │   schema_version=2, sizes)                 │
+                        │ idempotent ingest (already_processed)      │
+                        │ alertService: prolonged_freeze /           │
+                        │   possible_fall / high_tremor, cooldown    │
+                        │   DB-backed, lifecycle statuses            │
+                        │ REST + SSE (/api/v1/stream) + CSV export   │
+                        └───────┬──────────────────────────┬─────────┘
+                         service-role key                  │ same origin
+                                ▼                          ▼
+                   ┌─────────────────────┐     ┌────────────────────────┐
+                   │      SUPABASE        │     │ Live Monitor / Doctor  │
+                   │ patients devices     │     │ Portal (browser)       │
+                   │ readings events      │     │ REST poll + SSE push   │
+                   │ tap_tests            │     │ dashboard token only   │
+                   │ medication_events    │     └────────────────────────┘
+                   │ alerts reading_rollups│
+                   └─────────────────────┘
+                   Public website: marketing/technical story ONLY.
+                   No patient data, no database access, no handoff keys.
 ```
 
-## Data flow
+## Rules that make this the final architecture
 
-1. **Sensing / scoring (on-device).** Real MPU6050/APDS9960/DHT22/SGP30-or-
-   MQ/BMP280 readings, or a manually-typed CSV line in `MANUAL` mode, are
-   both fed into the same scoring logic and the same `evaluateAndAct()`
-   function. The device has no concept of "this reading is fake" past
-   ingestion.
+1. There is exactly ONE write path into the database: `POST /api/v1/telemetry`
+   with device credentials. Browser clients never write.
+2. Browser data access goes through the backend API with the dashboard
+   token. The browser never sees a database credential.
+3. `localStorage` holds UI preferences only (token echo, selected patient,
+   column choices). It is never the patient database.
+4. The ESP32 keeps sensing through ANY network/backend failure; telemetry
+   queues in a bounded FIFO and is drained oldest-first on recovery.
+5. Firmware dev simulation exists only behind `ENABLE_DEV_DIAGNOSTICS 0→1`
+   and drives local actuators only — it cannot reach the database.
+6. Every record has `event_id`; uniqueness is enforced by the database.
+7. Timestamps: device NTP `ts` when synced + always `device_ms` +
+   backend `received_at` (authoritative).
 
-2. **Local exposure (on-device).** The ESP32 hosts its own HTTP server. It
-   exposes exactly one machine-readable contract, `/data`, and one
-   human-facing page, the dashboard. It has no cloud role and no
-   persistent history — it only ever reports the current instant.
+## Module map
 
-3. **External polling (off-device, doctor side).** Something on the same
-   Wi-Fi — described in the source material as possibly a laptop for demo
-   purposes — periodically calls `GET /data`, timestamps the response, and
-   stores it. This is intentionally periodic sampling, not a continuous
-   stream, to keep load on the ESP32's single HTTP handler low and to keep
-   the stored history a clean, evenly-sampled time series.
+| Subsystem | Files | Notes |
+|---|---|---|
+| Firmware | `firmware/NeuroLoop_Core/{NeuroLoop_Core.ino, config.h, sensors.*, display.*, telemetry.*}` | coordinator + sensor layer + OLED pages + telemetry/queues + serial console |
+| Backend | `server/src/{server.js, config.js, db.js, bus.js, …}` | routes / middleware / services / utils |
+| Database | `supabase/migrations/0001_rebuild.sql` | additive-safe migration, legacy rename, RLS lockdown, rollup fn |
+| Live Monitor | `website/live-monitor/` | config/api/state/table/charts/infographics/events/graphics/diagnostics/app |
+| Doctor Portal | `website/doctor/` | clinician view of the same backend data |
+| Public site | `website/index.html` | story only — zero patient data |
 
-4. **Analytics (doctor website).** The stored history is the only input to
-   best/worst day comparisons, freeze-duration tracking, and trend views.
-   These are cross-referenced against medication/dosage entries, which are
-   logged separately by a doctor or patient — the device has no notion of
-   medication.
+## What was removed (do not resurrect)
 
-5. **Alerts (doctor website → external services).** When stored history
-   shows a sustained severe tremor classification or an unresolved freeze-
-   of-gait event, the backend — never the firmware — sends an email and/or
-   WhatsApp message.
-
-6. **Chatbot (doctor website, last to build).** A natural-language
-   interface over the stored summary data only. It depends on there being
-   real history to answer from, which is why it's built last.
-
-## Why the ESP32 has no cloud role
-
-Keeping the device local-only (serves `/data` and a dashboard, nothing
-more) means:
-- No API keys or credentials live on hardware a patient physically carries.
-- The firmware stays small enough to debug over serial in a classroom.
-- A single frozen JSON contract (`/data`) is the only thing every other
-  subsystem needs to agree on, which lets firmware, dashboard, doctor
-  website, and alerts be built and tested independently.
-
-## Failure isolation
-
-Each arrow in the diagram above is meant to be independently faulty
-without cascading:
-- Dashboard down → doesn't affect firmware sensing or `evaluateAndAct()`.
-- Poller briefly can't reach `/data` → it should skip that sample, not
-  crash or backfill fabricated data.
-- Alert send fails (bad API key, sandbox expired) → doesn't affect storage
-  or analytics.
-- Chatbot has insufficient stored data to answer → it says so, rather than
-  guessing.
+- ESP32 → Supabase direct POSTs with anon key + `setInsecure()`
+- ESP32 `/data` HTTP endpoint + laptop poller + local dashboard (design-era
+  artifacts in old docs — never built, docs rewritten)
+- Blynk / Firebase architectures (legacy dashboard archived to `legacy/`)
+- Manual telemetry entry form, manual medication dose form (live monitor)
+- `nl_outbox` localStorage cross-page handoff → public site patient cards
+- Whole-store localStorage per-patient database (`store.js`)
+- Disease-band tremor labels on the device ("PD"/"ET" → band-activity only)
+- Demo-day synthetic generator in the production path (`?mode=demo` is the
+  only demo path, isolated and labelled)

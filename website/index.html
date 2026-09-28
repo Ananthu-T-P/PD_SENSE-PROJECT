@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NeuroLoop — Understanding Parkinson's, measuring it</title>
-<meta name="description" content="A scroll-driven explanation of what Parkinson's disease does to the brain, and the wristband we built to measure it.">
+<meta name="description" content="A cinematic look inside the Parkinson's brain, and the wristband that measures what it does to a body.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --ink:#14120F;
@@ -16,227 +16,299 @@
   --dopamine:#3E6E5E;
   --line:#C9C0AE;
   --fog:#8A8474;
+  --dark:#121008;
+  --dark-line:rgba(237,231,220,.14);
   --serif:"Fraunces",Georgia,serif;
-  --sans:"Public Sans",-apple-system,"Segoe UI",sans-serif;
+  --sans:"Inter",-apple-system,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{
-  font-family:var(--sans);
-  background:var(--paper);
-  color:var(--ink);
-  line-height:1.55;
-  -webkit-font-smoothing:antialiased;
-}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:clip}
 ::selection{background:var(--tissue);color:var(--paper)}
-a{color:var(--tissue)}
+a{color:var(--tissue);text-decoration:none}
 a:focus-visible,button:focus-visible{outline:2px solid var(--tissue);outline-offset:3px}
+img{max-width:100%}
 
 /* ---------- Nav ---------- */
 header.site-nav{
   position:fixed;top:0;left:0;right:0;z-index:50;
   display:flex;justify-content:space-between;align-items:center;
-  padding:1.1rem 2rem;
+  padding:1.1rem clamp(1.25rem,4vw,3rem);
+  background:rgba(18,16,8,.55);
+  backdrop-filter:blur(14px) saturate(1.2);
+  -webkit-backdrop-filter:blur(14px) saturate(1.2);
+  border-bottom:1px solid rgba(237,231,220,.08);
+  transition:background .4s,border-color .4s;
+}
+header.site-nav.on-light{
   background:rgba(237,231,220,.85);
-  backdrop-filter:blur(8px);
   border-bottom:1px solid var(--line);
 }
-.wordmark{font-family:var(--serif);font-weight:600;font-size:1.15rem;letter-spacing:.01em;text-decoration:none;color:var(--ink)}
-.nav-actions{display:flex;gap:.75rem;align-items:center}
+.wordmark{font-family:var(--serif);font-weight:600;font-size:1.2rem;letter-spacing:.01em;color:#EDE7DC;transition:color .4s}
+header.on-light .wordmark{color:var(--ink)}
+.nav-actions{display:flex;gap:.7rem;align-items:center}
 .btn{
-  font-family:var(--sans);font-size:.9rem;font-weight:500;
-  padding:.55rem 1.1rem;border-radius:999px;cursor:pointer;
-  border:1px solid var(--ink);background:transparent;color:var(--ink);
-  transition:background .15s,color .15s;
+  font-family:var(--sans);font-size:.88rem;font-weight:500;
+  padding:.55rem 1.25rem;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(237,231,220,.35);background:transparent;color:#EDE7DC;
+  transition:all .25s cubic-bezier(.4,0,.2,1);
 }
-.btn:hover{background:var(--ink);color:var(--paper)}
-.btn.primary{background:var(--tissue);border-color:var(--tissue);color:var(--paper)}
-.btn.primary:hover{background:#962f25;border-color:#962f25}
+.btn:hover{background:#EDE7DC;color:#121008;border-color:#EDE7DC}
+.btn.primary{background:var(--tissue);border-color:var(--tissue);color:#fff}
+.btn.primary:hover{background:#962f25;border-color:#962f25;color:#fff}
+header.on-light .btn{border-color:rgba(20,18,15,.3);color:var(--ink)}
+header.on-light .btn:hover{background:var(--ink);color:var(--paper)}
+header.on-light .btn.primary{background:var(--tissue);border-color:var(--tissue);color:#fff}
+header.on-light .btn.primary:hover{background:#962f25}
 
-/* ---------- Hero: 3D brain ---------- */
-#hero{
-  position:relative;height:400vh; /* scroll runway */
-}
-#hero .sticky{
-  position:sticky;top:0;height:100vh;overflow:hidden;
-  display:flex;align-items:center;
-}
+/* ---------- Hero ---------- */
+#hero{position:relative;height:420vh;background:radial-gradient(120% 90% at 50% 40%, #1c1912 0%, #121008 55%, #0b0a06 100%)}
+.hero-sticky{position:sticky;top:0;height:100vh;min-height:640px;overflow:hidden}
 #brain-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* cinematic grain */
+.hero-sticky::after{
+  content:"";position:absolute;inset:-50%;pointer-events:none;opacity:.05;z-index:5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 8s steps(10) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}10%{transform:translate(-5%,-5%)}20%{transform:translate(-10%,5%)}
+  30%{transform:translate(5%,-10%)}40%{transform:translate(-5%,15%)}50%{transform:translate(-10%,5%)}
+  60%{transform:translate(15%,0)}70%{transform:translate(0,10%)}80%{transform:translate(-15%,0)}
+  90%{transform:translate(10%,5%)}100%{transform:translate(5%,0)}
+}
+/* vignette */
+.hero-sticky::before{
+  content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:radial-gradient(80% 70% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);
+}
 .hero-copy{
-  position:relative;z-index:2;max-width:34rem;
-  padding:0 2rem;margin-left:6vw;pointer-events:none;
+  position:absolute;left:clamp(1.25rem,6vw,6rem);top:50%;transform:translateY(-50%);
+  z-index:3;max-width:32rem;pointer-events:none;
 }
+.hero-copy .kicker{font-size:.8rem;letter-spacing:.22em;color:rgba(237,231,220,.5);text-transform:uppercase;margin-bottom:1.4rem}
 .hero-copy h1{
-  font-family:var(--serif);font-weight:600;
-  font-size:clamp(2.2rem,4.5vw,3.8rem);
-  line-height:1.08;letter-spacing:-.01em;
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(2.4rem,5vw,4.2rem);line-height:1.06;letter-spacing:-.015em;color:#EDE7DC;
 }
-.hero-copy p{margin-top:1.25rem;font-size:1.05rem;color:var(--fog);max-width:30rem}
-.stage-label{
-  position:absolute;z-index:3;font-size:.85rem;color:var(--ink);
-  background:rgba(237,231,220,.9);border:1px solid var(--line);
-  padding:.3rem .7rem;border-radius:4px;
-  transform:translate(-50%,-140%);white-space:nowrap;
-  opacity:0;transition:opacity .2s;
+.hero-copy h1 em{font-style:italic;font-weight:400}
+.hero-copy p{margin-top:1.4rem;font-size:1.02rem;color:rgba(237,231,220,.55);max-width:26rem;font-weight:300}
+.hero-cta{margin-top:2rem;pointer-events:auto;display:inline-block}
+.hero-cta .btn{border-color:rgba(237,231,220,.3)}
+.hero-cta .btn:hover{background:#EDE7DC;color:#121008}
+
+/* projected anatomy labels */
+.part-label{
+  position:absolute;z-index:6;opacity:0;pointer-events:none;
+  transform:translate(-50%,-50%);
+  color:rgba(237,231,220,.85);font-size:.78rem;letter-spacing:.04em;white-space:nowrap;
+  padding:.35rem .8rem;border:1px solid rgba(237,231,220,.22);border-radius:999px;
+  background:rgba(18,16,8,.55);backdrop-filter:blur(6px);
+  transition:opacity .5s;
 }
-.stage-label strong{font-weight:700}
-.stage-caption{
-  position:absolute;left:6vw;bottom:8vh;z-index:2;max-width:30rem;
+.part-label.hot{color:#ff9d92;border-color:rgba(255,120,100,.45)}
+.part-label .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:.5rem;vertical-align:1px}
+
+/* hero bottom caption */
+.hero-caption{
+  position:absolute;left:50%;bottom:2.5rem;transform:translateX(-50%);z-index:3;
+  font-family:var(--serif);font-style:italic;font-size:1.05rem;color:rgba(237,231,220,.45);
   opacity:0;
 }
-.stage-caption h2{font-family:var(--serif);font-size:1.6rem;font-weight:600;margin-bottom:.5rem}
-.stage-caption p{color:var(--fog);font-size:.98rem}
-.scroll-hint{
-  position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
-  font-size:.8rem;color:var(--fog);z-index:2;letter-spacing:.05em;
-}
 
-/* ---------- Narrative ---------- */
-main{max-width:72rem;margin:0 auto;padding:0 2rem}
+/* ---------- Shared section styles ---------- */
+main{max-width:76rem;margin:0 auto;padding:0 clamp(1.25rem,4vw,2rem)}
 section.stage{
   display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
-  gap:4rem;align-items:center;
-  padding:6rem 0;border-top:1px solid var(--line);
+  gap:clamp(2.5rem,6vw,5rem);align-items:center;
+  padding:clamp(4.5rem,9vw,7.5rem) 0;border-top:1px solid var(--line);
 }
-.stage-num{
-  font-family:var(--serif);font-size:1rem;color:var(--tissue);
-  display:block;margin-bottom:1rem;
-}
-.stage h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.7rem,3vw,2.4rem);line-height:1.15;letter-spacing:-.01em;margin-bottom:1.25rem}
-.stage p{max-width:62ch;color:var(--ink);margin-bottom:1rem}
+section.stage:first-of-type{border-top:none}
+.stage-num{font-family:var(--serif);font-size:.95rem;color:var(--tissue);display:block;margin-bottom:1.1rem;letter-spacing:.06em}
+.stage h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.8rem,3.2vw,2.5rem);line-height:1.15;letter-spacing:-.01em;margin-bottom:1.4rem}
+.stage p{max-width:60ch;margin-bottom:1.05rem}
 .stage .note{font-size:.9rem;color:var(--fog)}
 figure{margin:0}
-figcaption{font-size:.85rem;color:var(--fog);margin-top:.75rem}
+figcaption{font-size:.82rem;color:var(--fog);margin-top:.8rem}
 .stage svg{width:100%;height:auto;display:block}
 
-/* ---------- Device ---------- */
-section.device{padding:6rem 0;border-top:1px solid var(--line)}
-.device-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:4rem;align-items:center}
-.device h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.9rem,3.4vw,2.6rem);line-height:1.12;margin-bottom:1.25rem}
-.device p{max-width:62ch;margin-bottom:1rem}
-.device ul{list-style:none;margin:1.25rem 0 1.75rem}
-.device li{padding:.6rem 0;border-top:1px solid var(--line);font-size:.95rem}
+/* ---------- Monitoring section ---------- */
+section.monitor{border-top:1px solid var(--line);padding:clamp(4.5rem,9vw,7.5rem) 0}
+.monitor h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.8rem,3.2vw,2.5rem);line-height:1.15;letter-spacing:-.01em;margin-bottom:.9rem;max-width:34ch}
+.monitor>p{max-width:58ch;color:var(--fog);margin-bottom:3rem}
+.monitor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 3rem}
+.monitor-item{padding:1.75rem 0;border-top:1px solid var(--line)}
+.monitor-item:nth-last-child(-n+3){border-bottom:1px solid var(--line)}
+.monitor-item h3{font-family:var(--serif);font-weight:600;font-size:1.15rem;margin-bottom:.6rem}
+.monitor-item p{font-size:.92rem;color:var(--fog)}
+.monitor-item .metric{font-size:.78rem;letter-spacing:.08em;color:var(--tissue);margin-top:.9rem;display:block}
+
+/* ---------- Device section ---------- */
+section.device{border-top:1px solid var(--line);padding:clamp(4.5rem,9vw,7.5rem) 0}
+.device-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(2.5rem,6vw,5rem);align-items:start}
+.device h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.9rem,3.4vw,2.6rem);line-height:1.12;margin-bottom:1.3rem}
+.device p{max-width:60ch;margin-bottom:1rem}
+.device ul{list-style:none;margin:1.5rem 0 2rem}
+.device li{padding:.7rem 0;border-top:1px solid var(--line);font-size:.95rem}
 .device li:last-child{border-bottom:1px solid var(--line)}
-.device li strong{font-weight:700}
-.device-img{width:100%;border:1px solid var(--line);display:block}
-.disclaimer{font-size:.85rem;color:var(--fog);border-left:2px solid var(--tissue);padding-left:1rem;margin-top:2rem;max-width:60ch}
+.device li strong{font-weight:600}
+.device-figure .main-img{width:100%;border:1px solid var(--line);display:block}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:.75rem}
+.thumbs img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line);display:block;filter:saturate(.85)}
+.disclaimer{font-size:.85rem;color:var(--fog);border-left:2px solid var(--tissue);padding-left:1rem;margin-top:3rem;max-width:60ch}
 
 /* ---------- Footer ---------- */
-footer{border-top:1px solid var(--line);padding:2.5rem 2rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;font-size:.85rem;color:var(--fog)}
-footer a{color:var(--fog)}
+footer{border-top:1px solid var(--line);padding:2.5rem clamp(1.25rem,4vw,2rem);display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;font-size:.85rem;color:var(--fog)}
 
 /* ---------- Auth modal ---------- */
-.modal-backdrop{
-  position:fixed;inset:0;background:rgba(20,18,15,.45);z-index:100;
-  display:none;align-items:center;justify-content:center;padding:1rem;
-}
+.modal-backdrop{position:fixed;inset:0;background:rgba(14,12,7,.6);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;padding:1rem}
 .modal-backdrop.open{display:flex}
-.modal{
-  background:var(--paper);border:1px solid var(--line);
-  max-width:22rem;width:100%;padding:2rem;position:relative;
-}
-.modal h3{font-family:var(--serif);font-size:1.4rem;font-weight:600;margin-bottom:.5rem}
-.modal p{font-size:.92rem;color:var(--fog);margin-bottom:1.25rem}
-.modal input{
-  width:100%;padding:.65rem .85rem;margin-bottom:.75rem;font-size:.95rem;
-  border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:4px;font-family:var(--sans);
-}
+.modal{background:var(--paper);border:1px solid var(--line);max-width:23rem;width:100%;padding:2.25rem;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.modal h3{font-family:var(--serif);font-size:1.45rem;font-weight:600;margin-bottom:.5rem}
+.modal p{font-size:.9rem;color:var(--fog);margin-bottom:1.4rem}
+.modal input{width:100%;padding:.7rem .9rem;margin-bottom:.75rem;font-size:.92rem;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;font-family:var(--sans)}
 .modal input:focus{outline:2px solid var(--tissue);outline-offset:1px}
-.modal .close{
-  position:absolute;top:.75rem;right:.9rem;background:none;border:none;
-  font-size:1.3rem;cursor:pointer;color:var(--fog);
-}
-.modal .btn{width:100%;margin-top:.25rem}
-.modal .switch{margin-top:1rem;font-size:.85rem;text-align:center;color:var(--fog)}
+.modal .close{position:absolute;top:.8rem;right:1rem;background:none;border:none;font-size:1.35rem;cursor:pointer;color:var(--fog)}
+.modal .btn{width:100%;margin-top:.35rem;border-color:var(--tissue)}
+.modal .switch{margin-top:1.1rem;font-size:.85rem;text-align:center;color:var(--fog)}
 .modal .switch button{background:none;border:none;color:var(--tissue);cursor:pointer;font-size:.85rem;text-decoration:underline}
 
-/* ---------- Static no-WebGL / reduced-motion fallback ---------- */
-#hero.static-fallback{height:auto}
-#hero.static-fallback .sticky{position:static;height:auto;display:block;padding:7rem 2rem 4rem}
-#hero.static-fallback .hero-copy{margin:0 0 3rem 0;padding:0;max-width:40rem}
-#hero.static-fallback .stage-caption{position:static;opacity:1;margin-top:2rem}
-#hero.static-fallback .scroll-hint{display:none}
-.fallback-diagram{display:none;margin:2rem 0;max-width:34rem}
-#hero.static-fallback .fallback-diagram{display:block}
+/* ---------- Patient summaries (fed by live-monitor) ---------- */
+section.pdata{border-top:1px solid var(--line);padding:clamp(4.5rem,9vw,7.5rem) 0}
+.pdata h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.8rem,3.2vw,2.5rem);letter-spacing:-.01em;margin-bottom:.9rem}
+.pdata>p{max-width:60ch;color:var(--fog);margin-bottom:2.2rem}
+.pdata-bar{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;margin-bottom:2rem}
+.pdata-bar label{font-size:.82rem;color:var(--fog);letter-spacing:.06em;text-transform:uppercase}
+.pdata-bar select{font-family:var(--sans);font-size:.92rem;padding:.55rem .9rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+.pdata-bar .sync{font-size:.8rem;color:var(--fog)}
+.pdata-empty{border:1px dashed var(--line);border-radius:8px;padding:2rem;color:var(--fog);font-size:.95rem;max-width:44rem}
+.pcard{border:1px solid var(--line);border-radius:8px;background:#fff;padding:1.6rem 1.8rem;margin-bottom:1.4rem}
+.pcard-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.pcard-head h3{font-family:var(--serif);font-weight:600;font-size:1.3rem}
+.pcard-head h3 span{font-weight:400;color:var(--fog);font-size:.92rem}
+.pstat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.4rem}
+.pstat .k{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);margin-bottom:.25rem}
+.pstat .v{font-family:var(--serif);font-size:1.5rem}
+.pdose-table{width:100%;border-collapse:collapse;font-size:.9rem}
+.pdose-table th{text-align:left;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);font-weight:600;padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+.pdose-table td{padding:.55rem .7rem;border-bottom:1px solid #efe9dd;font-variant-numeric:tabular-nums}
+.pdose-table tr:last-child td{border-bottom:none}
+.pflag{display:flex;gap:.8rem;border-left:2px solid var(--amber,#B98E3F);background:#faf6ec;padding:.8rem 1rem;margin-top:.8rem;font-size:.88rem}
+.pflag{border-color:#B98E3F}
+@media (max-width:860px){.pstat-grid{grid-template-columns:repeat(2,1fr)}}
 
-@media (max-width:820px){
-  section.stage,.device-grid{grid-template-columns:1fr;gap:2rem}
-  .hero-copy{margin-left:0;max-width:26rem}
+/* ---------- Fallback ---------- */
+#hero.no-webgl{height:auto}
+#hero.no-webgl .hero-sticky{position:static;height:100vh}
+#hero.no-webgl .hero-caption{display:none}
+#hero.no-webgl #brain-canvas{display:none}
+.fallback-diagram{display:none}
+.no-webgl .fallback-diagram{display:block;max-width:24rem;margin-left:clamp(1.25rem,6vw,6rem);position:absolute;top:50%;right:clamp(1.25rem,6vw,6rem);transform:translateY(-50%);left:auto;z-index:2}
+
+@media (max-width:860px){
+  section.stage,.device-grid{grid-template-columns:1fr;gap:2.25rem}
+  .monitor-grid{grid-template-columns:1fr}
+  .monitor-item:nth-last-child(-n+3){border-bottom:none}
+  .monitor-item:last-child{border-bottom:1px solid var(--line)}
+  .hero-copy{max-width:24rem}
 }
 </style>
 </head>
 <body>
 
-<header class="site-nav">
-  <a class="wordmark" href="#top">NeuroLoop</a>
+<header class="site-nav" id="site-nav">
+  <a class="wordmark" href="#hero">NeuroLoop</a>
   <div class="nav-actions">
     <button class="btn" id="login-btn" type="button">Log in</button>
     <button class="btn primary" id="signup-btn" type="button">Sign up</button>
   </div>
 </header>
 
-<!-- ============ HERO: scroll-scrubbed brain explode ============ -->
+<!-- ============ HERO: cinematic exploding brain ============ -->
 <section id="hero">
-  <div class="sticky">
-    <canvas id="brain-canvas" aria-hidden="true"></canvas>
+  <div class="hero-sticky">
+  <canvas id="brain-canvas" aria-hidden="true"></canvas>
 
-    <div class="hero-copy">
-      <h1>What Parkinson's takes, one structure at a time.</h1>
-      <p>Scroll to look inside the brain, down to the few hundred thousand cells whose loss sets the disease in motion.</p>
-    </div>
+  <div class="hero-copy">
+    <div class="kicker">NeuroLoop · Parkinson's research hardware</div>
+    <h1>Inside the brain <em>Parkinson's</em> unravels.</h1>
+    <p>A cinematic look at the structures the disease dismantles — and the wristband built to measure what remains.</p>
+    <div class="hero-cta"><a class="btn" href="#story">Read the science</a></div>
+  </div>
 
-    <div class="stage-label" id="lbl-cerebrum"><strong>Cerebrum</strong> — voluntary movement starts here</div>
-    <div class="stage-label" id="lbl-cerebellum"><strong>Cerebellum</strong> — coordination and balance</div>
-    <div class="stage-label" id="lbl-brainstem"><strong>Brainstem</strong> — houses the substantia nigra</div>
-    <div class="stage-label" id="lbl-nigra"><strong>Substantia nigra</strong> — Parkinson's starts here</div>
+  <!-- projected labels (positioned by JS) -->
+  <div class="part-label" id="lbl-cortex"><span class="dot"></span>Cerebral cortex</div>
+  <div class="part-label" id="lbl-cerebellum"><span class="dot"></span>Cerebellum</div>
+  <div class="part-label" id="lbl-brainstem"><span class="dot"></span>Brainstem</div>
+  <div class="part-label hot" id="lbl-nigra"><span class="dot"></span>Substantia nigra — where Parkinson's begins</div>
 
-    <div class="stage-caption" id="cap-separate">
-      <h2>Separation</h2>
-      <p>The brain resolves into its major parts — cerebrum, cerebellum, brainstem — so we can reach the structure that matters here.</p>
-    </div>
-    <div class="stage-caption" id="cap-nigra">
-      <h2>The substantia nigra</h2>
-      <p>A small band of dopamine-producing neurons in the midbrain. In Parkinson's, the majority of these cells are lost before the first tremor ever appears.</p>
-    </div>
+  <svg class="fallback-diagram" viewBox="0 0 360 260" role="img" aria-label="Labeled brain diagram">
+    <path d="M80 70 Q40 130 70 180 Q120 220 210 200 Q200 150 190 110 Q150 60 80 70 Z" fill="none" stroke="#EDE7DC" stroke-width="2"/>
+    <path d="M210 200 Q260 190 250 160 Q220 150 205 165" fill="none" stroke="#EDE7DC" stroke-width="2"/>
+    <line x1="205" y1="165" x2="212" y2="230" stroke="#EDE7DC" stroke-width="2"/>
+    <circle cx="206" cy="196" r="7" fill="#B23A2E"/>
+    <text x="30" y="50" font-size="11" fill="#EDE7DC" font-family="Inter">Cerebrum</text>
+    <text x="262" y="160" font-size="11" fill="#EDE7DC" font-family="Inter">Cerebellum</text>
+    <text x="225" y="245" font-size="11" fill="#EDE7DC" font-family="Inter">Brainstem</text>
+    <text x="235" y="200" font-size="11" fill="#B23A2E" font-family="Inter" font-weight="700">Substantia nigra</text>
+  </svg>
 
-    <!-- static fallback diagram (shown when WebGL unavailable or reduced motion) -->
-    <svg class="fallback-diagram" viewBox="0 0 360 260" role="img" aria-label="Labeled brain diagram">
-      <path d="M80 70 Q40 130 70 180 Q120 220 210 200 Q200 150 190 110 Q150 60 80 70 Z" fill="none" stroke="#14120F" stroke-width="2"/>
-      <path d="M210 200 Q260 190 250 160 Q220 150 205 165" fill="none" stroke="#14120F" stroke-width="2"/>
-      <line x1="205" y1="165" x2="212" y2="230" stroke="#14120F" stroke-width="2"/>
-      <circle cx="206" cy="196" r="7" fill="#B23A2E"/>
-      <text x="30" y="50" font-size="11" fill="#14120F" font-family="Public Sans">Cerebrum</text>
-      <text x="262" y="160" font-size="11" fill="#14120F" font-family="Public Sans">Cerebellum</text>
-      <text x="225" y="245" font-size="11" fill="#14120F" font-family="Public Sans">Brainstem</text>
-      <text x="235" y="200" font-size="11" fill="#B23A2E" font-family="Public Sans" font-weight="700">Substantia nigra</text>
-    </svg>
-
-    <div class="scroll-hint">Scroll to explore</div>
+  <div class="hero-caption" id="hero-caption">A few hundred thousand neurons. That's all it takes.</div>
   </div>
 </section>
 
-<!-- ============ NARRATIVE ============ -->
-<main id="top">
+<main id="story">
 
+  <!-- ============ NARRATIVE STAGES ============ -->
   <section class="stage">
     <div>
       <span class="stage-num">01</span>
       <h2>The substantia nigra, when it works</h2>
-      <p>Deep in the midbrain sits a thin, darkly pigmented band of neurons — the substantia nigra, "black substance," named for the neuromelanin in its cells. These neurons produce dopamine and deliver it to the basal ganglia, the cluster of structures that helps the brain select and start movements.</p>
-      <p>Every time you reach for a cup, take a first step, or swing your arms as you walk, that dopamine signal is part of what lets the movement begin smoothly and automatically, without conscious effort.</p>
+      <p>Deep in the midbrain sits a thin, darkly pigmented band of neurons — the substantia nigra, "black substance," named for the neuromelanin in its cells. These neurons produce dopamine and deliver it to the basal ganglia, the cluster of structures that lets the brain select and start movements.</p>
+      <p>Every time you reach for a cup, take a first step, or swing your arms as you walk, that dopamine signal is part of what lets the movement begin smoothly — automatically, without conscious effort.</p>
     </div>
     <figure>
-      <svg viewBox="0 0 300 220" aria-label="Healthy dopamine pathway diagram">
-        <line x1="60" y1="170" x2="240" y2="60" stroke="#3E6E5E" stroke-width="3"/>
-        <circle cx="60" cy="170" r="10" fill="#3E6E5E"/>
-        <circle cx="240" cy="60" r="10" fill="#3E6E5E"/>
-        <circle cx="105" cy="142" r="4" fill="#3E6E5E"/>
-        <circle cx="150" cy="115" r="4" fill="#3E6E5E"/>
-        <circle cx="195" cy="87" r="4" fill="#3E6E5E"/>
-        <text x="28" y="200" font-size="11" fill="#14120F" font-family="Public Sans">Substantia nigra</text>
-        <text x="200" y="40" font-size="11" fill="#14120F" font-family="Public Sans">Basal ganglia</text>
+      <svg viewBox="0 0 360 260" role="img" aria-label="Diagram of a healthy dopamine neuron sending signals to the basal ganglia">
+        <!-- dendrites -->
+        <g stroke="#3E6E5E" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <path d="M98 112 L64 82"/><path d="M64 82 L48 60"/><path d="M64 82 L42 84"/>
+          <path d="M98 128 L62 156"/><path d="M62 156 L46 176"/><path d="M62 156 L40 152"/>
+        </g>
+        <!-- cell body -->
+        <circle cx="112" cy="120" r="27" fill="#3E6E5E" fill-opacity=".12" stroke="#3E6E5E" stroke-width="2.5"/>
+        <circle cx="112" cy="120" r="8" fill="#3E6E5E"/>
+        <!-- axon with myelin segments -->
+        <line x1="139" y1="120" x2="238" y2="120" stroke="#14120F" stroke-width="2"/>
+        <g stroke="#14120F" stroke-width="10" stroke-linecap="round">
+          <line x1="150" y1="120" x2="168" y2="120"/>
+          <line x1="180" y1="120" x2="198" y2="120"/>
+          <line x1="210" y1="120" x2="228" y2="120"/>
+        </g>
+        <!-- terminal + dopamine dots -->
+        <circle cx="248" cy="120" r="11" fill="#3E6E5E"/>
+        <g fill="#3E6E5E">
+          <circle cx="270" cy="110" r="3.5"/><circle cx="276" cy="122" r="3.5"/>
+          <circle cx="269" cy="133" r="3.5"/><circle cx="280" cy="115" r="2.5"/><circle cx="281" cy="128" r="2.5"/>
+        </g>
+        <!-- basal ganglia receptor -->
+        <rect x="296" y="96" width="16" height="48" rx="7" fill="none" stroke="#14120F" stroke-width="2.5"/>
+        <!-- labels -->
+        <g font-family="Inter" font-size="11" fill="#14120F">
+          <text x="24" y="44">Dendrites</text>
+          <text x="24" y="198">Substantia nigra neuron</text>
+          <text x="150" y="100">Axon</text>
+          <text x="243" y="88">Dopamine</text>
+          <text x="268" y="165">Basal ganglia</text>
+        </g>
+        <g stroke="#8A8474" stroke-width="1" fill="none">
+          <line x1="60" y1="48" x2="52" y2="66"/>
+          <line x1="96" y1="190" x2="108" y2="150"/>
+          <line x1="186" y1="104" x2="186" y2="113"/>
+          <line x1="266" y1="92" x2="272" y2="106"/>
+          <line x1="296" y1="158" x2="302" y2="146"/>
+        </g>
       </svg>
-      <figcaption>A healthy pathway: dopamine flows steadily from the substantia nigra to the basal ganglia.</figcaption>
+      <figcaption>One dopamine neuron: branches receive signals, the cell body makes dopamine, and the axon delivers it to the basal ganglia — the brain's movement switchboard.</figcaption>
     </figure>
   </section>
 
@@ -248,16 +320,47 @@ footer a{color:var(--fog)}
       <p class="note">By the time motor symptoms become noticeable, a substantial share of these neurons is already gone — which is why the disease can be underway for years before anyone sees it.</p>
     </div>
     <figure>
-      <svg viewBox="0 0 300 220" aria-label="Degraded dopamine pathway diagram">
-        <line x1="60" y1="170" x2="240" y2="60" stroke="#8A8474" stroke-width="2" stroke-dasharray="5 7"/>
-        <circle cx="60" cy="170" r="10" fill="#B23A2E"/>
-        <circle cx="240" cy="60" r="10" fill="#3E6E5E"/>
-        <circle cx="140" cy="122" r="4" fill="#B23A2E"/>
-        <text x="28" y="200" font-size="11" fill="#B23A2E" font-family="Public Sans" font-weight="700">Substantia nigra</text>
-        <text x="200" y="40" font-size="11" fill="#14120F" font-family="Public Sans">Basal ganglia</text>
-        <text x="90" y="95" font-size="10" fill="#8A8474" font-family="Public Sans">dopamine signal fading</text>
+      <svg viewBox="0 0 360 260" role="img" aria-label="Diagram of a dying dopamine neuron in Parkinson's disease">
+        <!-- dead neurons (ghost outlines) -->
+        <g stroke="#C9C0AE" stroke-width="2" stroke-dasharray="4 4" fill="none">
+          <circle cx="60" cy="46" r="20"/>
+          <circle cx="150" cy="30" r="20"/>
+        </g>
+        <g stroke="#C9C0AE" stroke-width="2.5" stroke-linecap="round">
+          <line x1="53" y1="39" x2="67" y2="53"/><line x1="67" y1="39" x2="53" y2="53"/>
+          <line x1="143" y1="23" x2="157" y2="37"/><line x1="157" y1="23" x2="143" y2="37"/>
+        </g>
+        <text x="30" y="82" font-family="Inter" font-size="11" fill="#8A8474">Neurons already lost</text>
+        <!-- weakened dendrites -->
+        <g stroke="#B23A2E" stroke-width="2" stroke-dasharray="3 4" fill="none" stroke-linecap="round">
+          <path d="M98 112 L64 84"/><path d="M98 128 L62 156"/>
+        </g>
+        <!-- shrunken, sick cell body -->
+        <circle cx="112" cy="120" r="19" fill="#B23A2E" fill-opacity=".12" stroke="#B23A2E" stroke-width="2.5"/>
+        <circle cx="112" cy="120" r="6" fill="#B23A2E"/>
+        <!-- broken axon -->
+        <line x1="131" y1="120" x2="180" y2="120" stroke="#8A8474" stroke-width="2" stroke-dasharray="5 6"/>
+        <line x1="195" y1="120" x2="238" y2="120" stroke="#8A8474" stroke-width="2" stroke-dasharray="5 6"/>
+        <!-- weak terminal, barely any dopamine -->
+        <circle cx="248" cy="120" r="8" fill="#B23A2E" fill-opacity=".35" stroke="#B23A2E" stroke-width="2"/>
+        <circle cx="272" cy="120" r="3" fill="#B23A2E"/>
+        <!-- basal ganglia receptor, starving -->
+        <rect x="296" y="96" width="16" height="48" rx="7" fill="none" stroke="#14120F" stroke-width="2.5"/>
+        <!-- labels -->
+        <g font-family="Inter" font-size="11">
+          <text x="70" y="216" fill="#B23A2E" font-weight="700">Dying substantia nigra neuron</text>
+          <text x="140" y="100" fill="#8A8474">Signal breaking down</text>
+          <text x="228" y="160" fill="#8A8474">Almost no dopamine</text>
+          <text x="268" y="184" fill="#14120F">Basal ganglia</text>
+        </g>
+        <g stroke="#8A8474" stroke-width="1" fill="none">
+          <line x1="118" y1="206" x2="112" y2="142"/>
+          <line x1="182" y1="104" x2="186" y2="116"/>
+          <line x1="276" y1="152" x2="272" y2="126"/>
+          <line x1="294" y1="178" x2="302" y2="148"/>
+        </g>
       </svg>
-      <figcaption>Cell loss in the substantia nigra (marked in red) starves the pathway of dopamine.</figcaption>
+      <figcaption>In Parkinson's, substantia nigra neurons die off one by one. The surviving axons carry so little dopamine that the basal ganglia can no longer start movements on its own.</figcaption>
     </figure>
   </section>
 
@@ -273,36 +376,97 @@ footer a{color:var(--fog)}
       <p class="note">These are measurable, physical signals — which is exactly why a wearable sensor can track them.</p>
     </div>
     <figure>
-      <svg viewBox="0 0 300 220" aria-label="Tremor waveform comparison">
-        <path d="M20 60 Q60 58 90 62 T160 60 T230 61 T290 60" fill="none" stroke="#3E6E5E" stroke-width="2"/>
-        <path d="M20 160 Q35 140 50 160 T90 160 T130 160 T170 160 T210 160 T250 160 T290 160" fill="none" stroke="#B23A2E" stroke-width="2"/>
-        <text x="20" y="40" font-size="11" fill="#3E6E5E" font-family="Public Sans">Steady hand</text>
-        <text x="20" y="135" font-size="11" fill="#B23A2E" font-family="Public Sans">Parkinsonian tremor (rhythmic)</text>
+      <svg viewBox="0 0 360 250" role="img" aria-label="Wrist sensor recording: steady hand versus tremor">
+        <!-- hand icon + steady line -->
+        <circle cx="36" cy="48" r="14" fill="none" stroke="#3E6E5E" stroke-width="2.5"/>
+        <path d="M66 48 Q100 45 140 49 T220 48 T330 47" fill="none" stroke="#3E6E5E" stroke-width="2.5"/>
+        <text x="66" y="30" font-family="Inter" font-size="12" fill="#3E6E5E">A steady hand, at rest</text>
+        <text x="66" y="78" font-family="Inter" font-size="11" fill="#8A8474">sensor reads an almost flat line</text>
+        <!-- hand icon + tremor line -->
+        <circle cx="36" cy="180" r="14" fill="none" stroke="#B23A2E" stroke-width="2.5"/>
+        <path d="M66 180 Q76 150 86 180 T106 180 T126 180 T146 180 T166 180 T186 180 T206 180 T226 180 T246 180 T266 180 T286 180 T306 180 T326 178" fill="none" stroke="#B23A2E" stroke-width="2.5"/>
+        <text x="66" y="140" font-family="Inter" font-size="12" fill="#B23A2E">A hand with Parkinson's tremor — the person is not moving it</text>
+        <text x="66" y="226" font-family="Inter" font-size="11" fill="#8A8474">the wristband sees this rhythm clearly, 4–6 shakes every second</text>
       </svg>
-      <figcaption>Acceleration measured at the wrist: a steady hand versus a rhythmic resting tremor.</figcaption>
+      <figcaption>What the wristband's sensor records: the same hand at rest looks completely different with Parkinson's — a steady line turns into a repeating wave.</figcaption>
     </figure>
+  </section>
+
+  <!-- ============ WHAT WE MONITOR ============ -->
+  <section class="monitor">
+    <h2>What PD-SENSE monitors</h2>
+    <p>Every signal below is captured at the wrist by an MPU6050 motion sensor, processed on-device, and logged to a timeline a clinician can review.</p>
+    <div class="monitor-grid">
+      <div class="monitor-item">
+        <h3>Resting tremor</h3>
+        <p>FFT analysis isolates the characteristic Parkinsonian tremor band and scores its intensity, continuously.</p>
+        <span class="metric">3–7 Hz spectral scoring</span>
+      </div>
+      <div class="monitor-item">
+        <h3>Bradykinesia</h3>
+        <p>Timed finger-tap tests quantify slowness, amplitude loss, and fatigue across repetitions.</p>
+        <span class="metric">Tap rate + amplitude decay</span>
+      </div>
+      <div class="monitor-item">
+        <h3>Gait &amp; freezing</h3>
+        <p>Cadence tracking detects freeze episodes the moment they begin, with duration logged per event.</p>
+        <span class="metric">Freeze onset + duration</span>
+      </div>
+      <div class="monitor-item">
+        <h3>Rigidity proxy</h3>
+        <p>Movement smoothness and resistance patterns during guided tasks, tracked over successive sessions.</p>
+        <span class="metric">Jerk &amp; smoothness index</span>
+      </div>
+      <div class="monitor-item">
+        <h3>Environment context</h3>
+        <p>Temperature, humidity, and air quality logged alongside symptoms, so external triggers stay visible.</p>
+        <span class="metric">DHT22 + SGP30 telemetry</span>
+      </div>
+      <div class="monitor-item">
+        <h3>Medication response</h3>
+        <p>Symptom scores cross-referenced against logged dose times, surfacing on/off patterns between doses.</p>
+        <span class="metric">Dose-aligned trends</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROJECT STATUS (no patient data on the public site) ============ -->
+  <section class="pdata" id="project-status">
+    <span class="stage-num">04</span>
+    <h2>Prototype status</h2>
+    <p>PD-SENSE is an engineering prototype. Live telemetry never appears on this public site:
+       device data flows from the wristband to the PD-SENSE backend and is visible only in the
+       authenticated Live Monitor and Doctor Portal.</p>
+    <div class="pdata-bar">
+      <span class="sync"><a href="live-monitor/index.html">Open the live monitor →</a></span>
+      <span class="sync"><a href="doctor/index.html">Doctor portal →</a></span>
+    </div>
   </section>
 
   <!-- ============ DEVICE ============ -->
   <section class="device">
     <div class="device-grid">
       <div>
-        <h2>So we built a wristband that measures it.</h2>
-        <p><strong>PD-SENSE</strong> is a wrist-worn monitor, built on an ESP32 with an MPU6050 motion sensor, that runs short guided tests — tremor, finger-tap, gait — and scores the result on the spot with sound and haptic feedback.</p>
+        <h2>One wristband. Built to measure all of it.</h2>
+        <p><strong>PD-SENSE</strong> is a wrist-worn monitor built on an ESP32 with stacked sensor boards. It runs short guided tests — tremor, tap, gait — scores the result on the spot with sound and haptic feedback, and streams a timestamped history to the doctor-facing portal.</p>
         <ul>
-          <li><strong>Tremor scoring.</strong> FFT-based detection of the rhythmic 3–7&nbsp;Hz band characteristic of Parkinsonian tremor.</li>
-          <li><strong>Bradykinesia grading.</strong> Timed tapping tests quantify slowing and fatigue of repetitive movement.</li>
-          <li><strong>Gait and freezing detection.</strong> Cadence analysis flags freeze episodes as they happen.</li>
-          <li><strong>Doctor-facing history.</strong> A companion portal polls the device and builds trend history against logged medication times, so a clinician sees patterns over weeks — not a single appointment snapshot.</li>
+          <li><strong>On-device scoring.</strong> FFT tremor detection runs on the ESP32 itself. No phone, no app, no cloud dependency in the room.</li>
+          <li><strong>Immediate feedback.</strong> Buzzer and haptic cues tell the patient when a test starts, ends, or flags an event.</li>
+          <li><strong>Clinician timeline.</strong> The portal accumulates snapshots into trends, best/worst-day comparisons, and medication cross-references.</li>
         </ul>
-        <a class="btn primary" href="#signup" id="device-cta">Request clinical access</a>
+        <a class="btn primary" href="#signup" id="device-cta" style="border-color:var(--tissue)">Request clinical access</a>
+        <p class="disclaimer">PD-SENSE measures and records motor symptoms. It does not diagnose, and it does not replace clinical judgment. Every trend it reports is a summary of measured movement for a clinician to interpret.</p>
       </div>
-      <figure>
-        <img class="device-img" src="../assets/images/PD_SENSE/PD_SENSE_MK1.jpg" alt="PD-SENSE Mk1 wrist-worn monitoring device" loading="lazy">
-        <figcaption>PD-SENSE Mk1 — the first working hardware revision, worn on the wrist.</figcaption>
+      <figure class="device-figure">
+        <img class="main-img" src="../assets/images/PD_SENSE/PD_SENSE_MK1.jpg" alt="PD-SENSE Mk1 wrist-worn monitoring device" loading="lazy">
+        <div class="thumbs">
+          <img src="../assets/images/PD_SENSE/PD_SENSE_FOAM.jpg" alt="PD-SENSE packaging foam insert" loading="lazy">
+          <img src="../assets/images/PD_SENSE/OLED_DISPLAY.jpg" alt="PD-SENSE OLED display showing live readings" loading="lazy">
+          <img src="../assets/images/PD_SENSE/PD_SENSE_TEST1.jpg" alt="PD-SENSE during a bench test" loading="lazy">
+        </div>
+        <figcaption>PD-SENSE Mk1 — first working hardware revision, with enclosure, display, and bench test.</figcaption>
       </figure>
     </div>
-    <p class="disclaimer">PD-SENSE measures and records motor symptoms. It does not diagnose, and it does not replace clinical judgment. Every trend it reports is a summary of measured movement for a clinician to interpret.</p>
   </section>
 
 </main>
@@ -312,7 +476,7 @@ footer a{color:var(--fog)}
   <span>Educational project. Not a medical device.</span>
 </footer>
 
-<!-- ============ AUTH MODAL (non-functional placeholder) ============ -->
+<!-- ============ AUTH MODAL (placeholder) ============ -->
 <div class="modal-backdrop" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
   <div class="modal">
     <button class="close" id="auth-close" aria-label="Close">&times;</button>
@@ -320,7 +484,7 @@ footer a{color:var(--fog)}
     <p id="auth-desc">Clinician accounts are being rolled out. Sign-in will be enabled in the next release.</p>
     <input type="email" placeholder="Email address" disabled>
     <input type="password" placeholder="Password" disabled>
-    <button class="btn primary" id="auth-submit" type="button" disabled>Log in</button>
+    <button class="btn primary" id="auth-submit" type="button" disabled style="border-color:var(--tissue)">Log in</button>
     <div class="switch">No account yet? <button id="auth-toggle" type="button">Sign up</button></div>
   </div>
 </div>
@@ -329,9 +493,9 @@ footer a{color:var(--fog)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
-/* =========================================================
+/* =====================================================
    Auth modal (placeholder, non-functional)
-========================================================= */
+===================================================== */
 (function(){
   const modal=document.getElementById('auth-modal');
   const title=document.getElementById('auth-title');
@@ -339,11 +503,11 @@ footer a{color:var(--fog)}
   const submit=document.getElementById('auth-submit');
   const toggle=document.getElementById('auth-toggle');
   let mode='login';
-  function open(m){mode=m;render();modal.classList.add('open');document.getElementById('auth-close').focus();}
   function render(){
     if(mode==='login'){title.textContent='Log in';desc.textContent='Clinician accounts are being rolled out. Sign-in will be enabled in the next release.';submit.textContent='Log in';toggle.textContent='Sign up';}
     else{title.textContent='Create an account';desc.textContent='Clinician registration is not open yet. Leave your details with the team to be notified.';submit.textContent='Sign up';toggle.textContent='Log in';}
   }
+  function open(m){mode=m;render();modal.classList.add('open');document.getElementById('auth-close').focus();}
   document.getElementById('login-btn').addEventListener('click',()=>open('login'));
   document.getElementById('signup-btn').addEventListener('click',()=>open('signup'));
   document.getElementById('device-cta').addEventListener('click',e=>{e.preventDefault();open('signup');});
@@ -353,170 +517,207 @@ footer a{color:var(--fog)}
   document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remove('open');});
 })();
 
-/* =========================================================
-   3D brain hero
-========================================================= */
+/* Nav theme switch when leaving hero */
 (function(){
-  const hero=document.getElementById('hero');
-  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nav=document.getElementById('site-nav');
+  new IntersectionObserver(entries=>{
+    nav.classList.toggle('on-light', !entries[0].isIntersecting);
+  },{threshold:0.15}).observe(document.getElementById('hero'));
+})();
 
-  function webglAvailable(){
+
+/* =====================================================
+   CINEMATIC EXPLODING BRAIN  (auto-playing on load)
+   Modular builder + GSAP master timeline
+===================================================== */
+(function(){
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function webglOK(){
     try{const c=document.createElement('canvas');return !!(window.WebGLRenderingContext&&(c.getContext('webgl')||c.getContext('experimental-webgl')));}
     catch(e){return false;}
   }
-  if(reducedMotion||!webglAvailable()||typeof THREE==='undefined'||typeof gsap==='undefined'){
-    hero.classList.add('static-fallback');
+  if(!webglOK()||typeof THREE==='undefined'||typeof gsap==='undefined'){
+    document.getElementById('hero').classList.add('no-webgl');
     return;
   }
 
+  const hero=document.getElementById('hero');
+  const sticky=hero.querySelector('.hero-sticky');
   const canvas=document.getElementById('brain-canvas');
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.15;
+
   const scene=new THREE.Scene();
-  const camera=new THREE.PerspectiveCamera(38,1,0.1,100);
-  camera.position.set(0,0.4,9.5);
+  scene.fog=new THREE.Fog(0x0b0a06,9,22);
 
-  const inkMat =new THREE.MeshStandardMaterial({color:0xDAD2C2,roughness:.85,flatShading:true});
-  const greyMat=new THREE.MeshStandardMaterial({color:0xC4BBA8,roughness:.9,flatShading:true});
-  const tissueMat=new THREE.MeshStandardMaterial({color:0xB23A2E,roughness:.6,flatShading:true,emissive:0x40150f});
-  const healthyMat=new THREE.MeshStandardMaterial({color:0x3E6E5E,roughness:.6,flatShading:true});
+  const camera=new THREE.PerspectiveCamera(36,1,0.1,100);
+  camera.position.set(0,0.3,10);
 
-  scene.add(new THREE.HemisphereLight(0xffffff,0x8a8474,0.9));
-  const key=new THREE.DirectionalLight(0xffffff,0.9);key.position.set(4,6,6);scene.add(key);
+  /* --- lighting: soft studio + warm key + cool rim --- */
+  scene.add(new THREE.HemisphereLight(0xfff4e0,0x14120f,0.55));
+  const key=new THREE.DirectionalLight(0xfff1dd,1.6);key.position.set(4,6,5);scene.add(key);
+  const rim=new THREE.DirectionalLight(0x7fa8ff,1.1);rim.position.set(-6,2,-6);scene.add(rim);
+  const warm=new THREE.PointLight(0xff6b4a,0);warm.position.set(0,-0.5,2.5);scene.add(warm);
+
+  /* --- materials --- */
+  const cortexMat=new THREE.MeshStandardMaterial({color:0xc9b8a4,roughness:.55,metalness:.05,flatShading:false});
+  const lobeMat =new THREE.MeshStandardMaterial({color:0xbfae99,roughness:.6, metalness:.05});
+  const nigraMat=new THREE.MeshStandardMaterial({color:0xB23A2E,roughness:.35,emissive:0xff3b3b,emissiveIntensity:0});
+
+  /* --- procedural gyri noise: three octaves for realistic folds --- */
+  function ripple(geo,freq,amp){
+    const p=geo.attributes.position;const v=new THREE.Vector3();
+    for(let i=0;i<p.count;i++){
+      v.fromBufferAttribute(p,i);
+      const n=Math.sin(v.x*freq)*Math.sin(v.y*(freq*0.9))*Math.sin(v.z*(freq*1.1))
+             +0.6*Math.sin(v.x*freq*2.3+1.7)*Math.sin(v.y*freq*2.1+0.8)*Math.sin(v.z*freq*1.9)
+             +0.25*Math.sin(v.x*freq*4.7+3.1)*Math.sin(v.z*freq*4.3+1.2);
+      v.multiplyScalar(1+n*amp);
+      p.setXYZ(i,v.x,v.y,v.z);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
 
   const brain=new THREE.Group();scene.add(brain);
 
-  // Cerebrum: two flattened, slightly bumpy spheres
-  const cerebrum=new THREE.Group();
+  /* Cerebral cortex: two hemispheres with deep gyri + central groove */
+  const cortex=new THREE.Group();
   [-1,1].forEach(side=>{
-    const geo=new THREE.SphereGeometry(1.55,10,9);
-    const pos=geo.attributes.position;
-    for(let i=0;i<pos.count;i++){
-      const v=new THREE.Vector3().fromBufferAttribute(pos,i);
-      v.y*=0.82; v.x*=0.85;
-      v.multiplyScalar(1+0.06*Math.sin(v.x*7)*Math.sin(v.y*6)*Math.sin(v.z*5)); // cortical ripple
-      pos.setXYZ(i,v.x,v.y,v.z);
+    const geo=ripple(new THREE.SphereGeometry(1.5,72,54),6.5,0.055);
+    const p=geo.attributes.position;const v=new THREE.Vector3();
+    for(let i=0;i<p.count;i++){
+      v.fromBufferAttribute(p,i);
+      v.x*=0.8; v.y*=0.86; v.z*=1.05;
+      if(side>0&&v.x<0.12) v.x=0.12+(v.x-0.12)*0.2; // flatten inner face
+      if(side<0&&v.x>-0.12) v.x=-0.12+(v.x+0.12)*0.2;
+      p.setXYZ(i,v.x,v.y,v.z);
     }
     geo.computeVertexNormals();
-    const m=new THREE.Mesh(geo,inkMat);
-    m.position.x=side*0.78;
-    cerebrum.add(m);
+    const m=new THREE.Mesh(geo,cortexMat);
+    m.position.x=side*0.62;
+    cortex.add(m);
   });
-  cerebrum.position.y=0.45;
-  brain.add(cerebrum);
+  cortex.position.y=0.4;
+  brain.add(cortex);
 
-  // Cerebellum: small wrinkled sphere, rear-low
-  const cerGeo=new THREE.SphereGeometry(0.72,10,9);
-  { const p=cerGeo.attributes.position;
-    for(let i=0;i<p.count;i++){
-      const v=new THREE.Vector3().fromBufferAttribute(p,i);
-      v.multiplyScalar(1+0.08*Math.sin(v.y*18));
-      p.setXYZ(i,v.x,v.y,v.z);
-    } cerGeo.computeVertexNormals(); }
-  const cerebellum=new THREE.Mesh(cerGeo,greyMat);
-  cerebellum.position.set(0,-0.95,-0.95);
+  /* Cerebellum */
+  const cerebellum=new THREE.Mesh(ripple(new THREE.SphereGeometry(0.72,48,36),14,0.05),lobeMat);
+  cerebellum.position.set(0,-1.0,-0.95);
+  cerebellum.scale.set(1.25,0.75,0.9);
   brain.add(cerebellum);
 
-  // Brainstem: angled cylinder down from center
-  const brainstem=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.36,1.7,9),greyMat);
-  brainstem.position.set(0,-1.35,0.15);
-  brainstem.rotation.x=0.35;
+  /* Brainstem */
+  const brainstem=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.37,1.8,20),lobeMat);
+  brainstem.position.set(0,-1.45,0.12);
+  brainstem.rotation.x=0.32;
   brain.add(brainstem);
 
-  // Substantia nigra pair (PD, red) + healthy reference (green)
+  /* Substantia nigra: glowing pair */
   const nigra=new THREE.Group();
-  const nigraPD=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),tissueMat);
-  nigraPD.position.set(-0.5,0,0);
-  nigraPD.scale.setScalar(0.65); // diminished
-  const nigraOK=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),healthyMat);
-  nigraOK.position.set(0.5,0,0);
-  nigra.add(nigraPD,nigraOK);
-  nigra.position.set(0,-0.55,0.55);
+  [-1,1].forEach(side=>{
+    const m=new THREE.Mesh(new THREE.SphereGeometry(0.21,24,18),nigraMat);
+    m.scale.set(1.6,0.55,0.8);
+    m.position.set(side*0.28,0,0);
+    nigra.add(m);
+  });
+  nigra.position.set(0,-0.62,0.42);
   brain.add(nigra);
 
-  brain.rotation.y=-0.5;
-
-  // Rest offsets for the explode
-  const off={
-    cerebrum:new THREE.Vector3(0,1.5,-0.2),
-    cerebellum:new THREE.Vector3(1.6,-0.7,-1.8),
-    brainstem:new THREE.Vector3(-1.6,-0.6,-0.6),
-    nigra:new THREE.Vector3(0,0.4,1.4)
-  };
-
-  // HTML labels projected from 3D anchors
-  const labels=[
-    {el:document.getElementById('lbl-cerebrum'),obj:cerebrum,from:0.28,to:0.52},
-    {el:document.getElementById('lbl-cerebellum'),obj:cerebellum,from:0.28,to:0.52},
-    {el:document.getElementById('lbl-brainstem'),obj:brainstem,from:0.28,to:0.52},
-    {el:document.getElementById('lbl-nigra'),obj:nigra,from:0.55,to:0.88}
+  /* parts registry: {group, restPos, explodeDir, labelEl} */
+  const parts=[
+    {obj:cortex,    dir:new THREE.Vector3(0, 1.35,-0.1), el:document.getElementById('lbl-cortex'),    win:[0.26,0.56]},
+    {obj:cerebellum,dir:new THREE.Vector3(1.7,-0.55,-1.5),el:document.getElementById('lbl-cerebellum'),win:[0.30,0.56]},
+    {obj:brainstem, dir:new THREE.Vector3(-1.7,-0.75,-0.5),el:document.getElementById('lbl-brainstem'),win:[0.34,0.56]},
+    {obj:nigra,     dir:new THREE.Vector3(0, 0.55, 1.7), el:document.getElementById('lbl-nigra'),     win:[0.62,1.01]}
   ];
-  const captions=[
-    {el:document.getElementById('cap-separate'),from:0.3,to:0.52},
-    {el:document.getElementById('cap-nigra'),from:0.58,to:0.92}
-  ];
+  parts.forEach(p=>{p.rest=p.obj.position.clone();});
 
-  let progress=0;
+  /* --- state --- */
+  const mouse={x:0,y:0};
+  window.addEventListener('pointermove',e=>{
+    mouse.x=(e.clientX/window.innerWidth-0.5);
+    mouse.y=(e.clientY/window.innerHeight-0.5);
+  });
+
+  /* --- scroll-scrubbed cinematic (lerped for butter-smooth motion) --- */
+  gsap.registerPlugin(ScrollTrigger);
+  let targetP=0, curP=0;
+  ScrollTrigger.create({
+    trigger:'#hero',start:'top top',end:'bottom bottom',scrub:true,
+    onUpdate:self=>{targetP=self.progress;}
+  });
+  const smooth=(a,b,t)=>{t=Math.min(1,Math.max(0,(t-a)/(b-a)));return t*t*(3-2*t);};
+  const copyEl=document.querySelector('.hero-copy');
+  const captionEl=document.getElementById('hero-caption');
+
+  /* --- per-frame application of state --- */
   const tmp=new THREE.Vector3();
+  const look=new THREE.Vector3();
+  function apply(){
+    const explode=smooth(0.15,0.55,curP);
+    const d=smooth(0.55,0.85,curP);
+    const glow=smooth(0.68,0.88,curP);
+
+    parts.forEach(p=>{
+      p.obj.position.copy(p.rest).addScaledVector(p.dir,explode);
+    });
+    brain.rotation.y=-0.55+curP*1.7;
+    brain.rotation.x=0.18*d;
+
+    // camera dolly toward the substantia nigra
+    camera.position.z=10.5-7.3*d;
+    camera.position.y=0.3-0.75*d - mouse.y*0.25;
+    camera.position.x=mouse.x*0.35;
+    look.set(0,-0.15-0.4*d,1.2*d);
+    camera.lookAt(look);
+
+    // headline yields to the anatomy as the camera pushes in
+    copyEl.style.opacity=String(1-smooth(0.42,0.6,curP));
+    captionEl.style.opacity=String(smooth(0.84,0.95,curP));
+
+    // substantia nigra pulse
+    const pulse=0.6+0.4*Math.sin(performance.now()*0.004);
+    nigraMat.emissiveIntensity=glow*(1.4+0.9*pulse);
+    warm.intensity=glow*(2.2+1.1*pulse);
+    nigra.scale.setScalar(1+0.08*glow*pulse);
+
+    // idle drift after settle
+    brain.rotation.z=Math.sin(performance.now()*0.00025)*0.02;
+    brain.position.y=Math.sin(performance.now()*0.0009)*0.05;
+
+    // project labels, with per-part visibility windows
+    parts.forEach(p=>{
+      if(!p.el)return;
+      p.obj.getWorldPosition(tmp);tmp.project(camera);
+      const w=sticky.clientWidth,h=sticky.clientHeight;
+      p.el.style.left=((tmp.x*0.5+0.5)*w)+'px';
+      p.el.style.top =((-tmp.y*0.5+0.5)*h)+'px';
+      const [w0,w1]=p.win;
+      const o=Math.min(1,Math.max(0,Math.min((curP-w0)/0.05,(w1-curP)/0.05)));
+      p.el.style.opacity=o.toFixed(2);
+    });
+  }
 
   function resize(){
-    const w=hero.clientWidth,h=window.innerHeight;
+    const w=sticky.clientWidth,h=sticky.clientHeight;
     renderer.setSize(w,h,false);
-    camera.aspect=w/h;camera.updateProjectionMatrix();
+    camera.aspect=w/h;
+    camera.updateProjectionMatrix();
   }
   window.addEventListener('resize',resize);resize();
 
-  const ease=t=>t*t*(3-2*t); // smoothstep
-  function sub(a,b,t){return ease(Math.min(1,Math.max(0,(t-a)/(b-a))));}
-
-  function applyState(t){
-    const sep=sub(0.15,0.55,t);       // explode amount
-    const push=sub(0.55,0.85,t);      // camera push into nigra
-
-    cerebrum.position.copy(new THREE.Vector3(0,0.45,0)).addScaledVector(off.cerebrum,sep);
-    cerebellum.position.copy(new THREE.Vector3(0,-0.95,-0.95)).addScaledVector(off.cerebellum,sep);
-    brainstem.position.copy(new THREE.Vector3(0,-1.35,0.15)).addScaledVector(off.brainstem,sep);
-    nigra.position.copy(new THREE.Vector3(0,-0.55,0.55)).addScaledVector(off.nigra,sep);
-
-    brain.rotation.y=-0.5+t*1.4;
-    brain.rotation.x=0.12*sep;
-
-    camera.position.set(0, 0.4-0.8*push, 9.5-6.7*push);
-    tmp.set(0, -0.4*push-0.15*sep, 1.4*push*sep+0.4*push);
-    camera.lookAt(tmp);
-
-    // nigra grows to dominate at the end; healthy ref alongside
-    nigraPD.scale.setScalar(0.65+0.35*push);
-    tissueMat.emissiveIntensity=0.4+1.2*push;
-
-    labels.forEach(l=>{
-      l.obj.getWorldPosition(tmp);tmp.project(camera);
-      const x=(tmp.x*0.5+0.5)*hero.clientWidth;
-      const y=(-tmp.y*0.5+0.5)*window.innerHeight;
-      l.el.style.left=x+'px';l.el.style.top=y+'px';
-      l.el.style.opacity=(t>=l.from&&t<=l.to)?1:0;
-    });
-    captions.forEach(c=>{
-      c.el.style.opacity=(t>=c.from&&t<=c.to)?Math.min(1,(t-c.from)/0.06):0;
-    });
-  }
-
-  // Slow idle rotation in stage 0 only (0–15%)
-  let idleT=0;
-  function render(){
-    idleT+=0.002;
-    if(progress<0.15)brain.rotation.y+=0.0012;
-    applyState(progress);
+  function loop(){
+    curP+=(targetP-curP)*0.08; // lerp: buttery-smooth scrub
+    apply();
     renderer.render(scene,camera);
-    requestAnimationFrame(render);
+    requestAnimationFrame(loop);
   }
-
-  gsap.registerPlugin(ScrollTrigger);
-  ScrollTrigger.create({
-    trigger:'#hero',start:'top top',end:'bottom bottom',scrub:true,
-    onUpdate:self=>{progress=self.progress;}
-  });
-  render();
+  loop();
 })();
 </script>
 </body>

@@ -1,75 +1,46 @@
-# AGENT.md — NeuroLoop
+# AGENT.md — instructions for coding agents on PD-SENSE (v7)
 
-Instructions for any coding agent (human or AI) working in this repository.
-Read this file first, then read the specific sub-agent file in `agents/` for
-the subsystem you're touching. Each sub-agent file is scoped: it only
-describes the rules, interfaces, and constraints for its own piece, so you
-never need to load the whole project into context to make a correct change.
+Read before editing. `docs/CURRENT_STATE.md` holds the pre-rebuild audit;
+`docs/ARCHITECTURE.md` holds the CURRENT architecture. They must agree
+with the code — if they don't, the CODE is wrong until proven otherwise.
 
-## Ground rules for the whole project
+## Non-negotiables
 
-1. **This is a medical-adjacent monitoring device, not a diagnostic one.**
-   Nothing in this project diagnoses Parkinson's or makes a treatment
-   decision. It measures motor signals and surfaces trends to a doctor, who
-   makes the call. Never phrase UI copy, alerts, or chatbot answers as a
-   diagnosis or a medical instruction ("you have worsened", "increase your
-   dose"). Report what was measured, not what it means clinically.
+1. The ESP32 always runs real sensors in normal operation. Dev simulation
+   is compile-gated (`ENABLE_DEV_DIAGNOSTICS 0`) and touches only local
+   actuator cues — never sensor state, never telemetry.
+2. The ONLY database write path is the backend (`server/`), holding the
+   Supabase service-role key. Firmware and browsers never see it.
+3. `event_id` uniqueness is the dedupe contract; retried POSTs must
+   resolve to `already_processed`.
+4. No invented values: invalid/contaminated windows are quality states,
+   not zeros. Incomplete tap tests never get a grade. Medication gesture
+   events are records, not proof of intake. Nothing "diagnoses".
+5. localStorage = UI preferences only. No patient data leaves the backend.
+6. The public site (`website/index.html`) must never embed patient data.
+7. Secrets live in env/local config only; placeholders are what get
+   committed. See docs/SECURITY.md (rotation pending items listed there).
+8. Preserve validated sensor algorithms unless you can show a concrete
+   bug — especially: adaptive calibration, FFT band gating + confirm +
+   EMA, tap hysteresis/debounce, gait freeze timers.
+9. Test, don't claim: run `cd server && node --test` after changing
+   backend/shared logic. Mark anything untestable here as REQUIRES
+   PHYSICAL HARDWARE VALIDATION.
+10. Big firmware files are coherent wholes: when you touch one
+    substantially, ship the complete file and re-read it for regressions.
 
-2. **Real sensor data and manually-entered data are the same downstream
-   data.** Any test data, scoring, alerting, or storage logic must treat a
-   manually-typed serial entry identically to a live MPU6050 reading. Do not
-   special-case manual mode anywhere past the point of ingestion — that
-   defeats the point of using it for classroom demos.
+## Build & validation
 
-3. **The ESP32 never talks to the internet.** It only serves its own local
-   `/data` endpoint and dashboard over the local Wi-Fi network. All email,
-   WhatsApp, and AI chatbot logic lives on the external doctor website /
-   poller, never on the device firmware. This keeps the firmware simple,
-   keeps patient data off third-party APIs by default, and matches the
-   agreed architecture in `docs/ARCHITECTURE.md`.
-
-4. **Scope discipline.** The on-device TinyML classifier from the original
-   EOI is explicitly cut for this version. Do not reintroduce it, a model
-   file, or a training pipeline unless a human explicitly reopens that
-   scope decision in writing.
-
-5. **One finalized firmware file.** The firmware has been discussed in
-   sketches but not finalized as a single file. Before adding a new
-   feature, check whether `docs/FIRMWARE.md`'s state machine already
-   describes a slot for it. If it doesn't fit any existing mode, that's a
-   sign to update the spec first, then the code — not the other way round.
-
-6. **No invented data.** The analytics and chatbot on the doctor website
-   must only summarize what was actually polled and stored. Never fabricate
-   a data point, a trend, or a doctor-facing claim to fill a gap — say the
-   data isn't available for that period instead.
-
-## Build order (see `docs/BUILD_ORDER.md` for detail)
-
-1. ESP32 firmware (state machine, manual mode, buzzer/actuator response,
-   `/data` endpoint, local dashboard)
-2. Doctor website (poller, storage, comparison/analytics logic)
-3. Alerts (email / WhatsApp)
-4. AI chatbot (depends on stored data existing — build last)
-
-Do not start step *n* in a way that blocks step *n+1* from reading its
-required data shape. In particular: freeze the `/data` JSON schema in
-`docs/FIRMWARE.md` before writing the poller, since the poller, the
-analytics layer, and the chatbot all depend on it staying stable.
-
-## Sub-agent index
-
-| File | Scope |
+| Layer | Check |
 |---|---|
-| [`agents/firmware-agent.md`](./agents/firmware-agent.md) | ESP32 firmware: state machine, manual mode, sensor scoring, `/data` endpoint |
-| [`agents/dashboard-agent.md`](./agents/dashboard-agent.md) | Local Wi-Fi live dashboard HTML/JS served by the ESP32 |
-| [`agents/doctor-website-agent.md`](./agents/doctor-website-agent.md) | External poller, storage, analytics, AI chatbot |
-| [`agents/alerts-agent.md`](./agents/alerts-agent.md) | Email / WhatsApp alert integration |
-| [`agents/enclosure-agent.md`](./agents/enclosure-agent.md) | OpenSCAD wrist enclosure |
-| [`agents/website-agent.md`](./agents/website-agent.md) | Public 3D scroll-driven project website |
+| Backend | `cd server; npm install; node --test` |
+| Backend API smoke | `npm start` + `GET /api/health` → ok |
+| Frontend JS | `node --check` each `website/*/js/*.js` |
+| Firmware | Arduino build on a real bench (not checkable here) |
+| Database | run the migration in the Supabase SQL editor |
 
-## When in doubt
+## Scoped briefs
 
-Prefer the smallest change that satisfies the written spec in `docs/`. If a
-request conflicts with a spec, flag the conflict and ask, rather than
-silently picking one side.
+`agents/*.md` are **superseded** legacy briefs kept for history (each
+carries a banner). The current contracts are the docs listed in
+README.md's document map.

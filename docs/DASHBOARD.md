@@ -1,53 +1,51 @@
-# Local Wi-Fi Dashboard Spec
+# PD-SENSE — Live Monitor (dashboard)
 
-## Purpose
+`website/live-monitor/`. Engineering instrumentation console for the
+device. Served by the backend at `/live-monitor/` (or any static server;
+set `?api=http://<backend>:3000&token=…` when opened from file://).
 
-Let anyone on the same Wi-Fi network as the wristband — a teacher, an
-evaluator, a caregiver — see live readings by opening the ESP32's local IP
-address in any browser. No app install, no account, no internet
-connection required.
+## Data flow
 
-## What it shows
+ESP32 → backend → Supabase → backend → **api.js** → **state.js**
+(normalized contract) → table.js + charts.js + infographics.js +
+events.js + graphics.js. One reading update touches every surface from
+the same record; no module re-interprets the database by itself.
 
-Polls `GET /data` (see `FIRMWARE.md` for the frozen schema) roughly every
-**300 ms** via `fetch()`, and renders:
+## What shows
 
-- Current mode (`IDLE` / `TREMOR_TEST` / `TAP_TEST` / `GAIT_TEST` /
-  `MANUAL`)
-- Tremor score
-- Bradykinesia grade
-- Gait status
+- Header: patient, device, LIVE / STALE / OFFLINE / last packet age.
+- Live system visualization: the telemetry pipeline; a packet crosses it
+  at each real ingest; movement-trace amplitude follows the tremor index;
+  a cadence heartbeat runs at the measured cadence; a FREEZE stalls the
+  trace; backend loss flips link states. (Optional 3-D device model when
+  THREE.js loads; SVG fallback otherwise.)
+- Current metrics (tremor / frequency / gait / cadence / bradykinesia),
+  each with an (i) explanation drawer — WHAT / SOURCE / HOW / UPDATE /
+  QUALITY / LIMITATIONS. Values go to N/A when quality ≠ VALID.
+- Live signals: charts for tremor, dominant frequency, cadence, jerk,
+  IMU RMS (null gaps; never connects through missing data).
+- Events timeline: freeze, possible_fall, medication_event,
+  tap_test_completed, alerts (typed icons, ack buttons for open alerts).
+- **LIVE ESP32 READINGS table**: newest-first packets, optional columns
+  (Event ID / Device / Seq / RMS / Freeze / Source), pagination
+  (25/50/100 + Load more via backend cursor), range filter, new-row
+  highlight, "NEW DATA — n RECORDS" banner (no scroll hijack), row click
+  → READING DETAILS (timestamps, ingest latency, all real fields),
+  CSV export (server-side data).
+- Device health panel + history summary (range-scoped), with data-gap
+  reporting and neutral summary language.
 
-## What it explicitly does not show
+## Flags
 
-- History or trends — that's the doctor website's job, not this page's.
-- Any per-user or login-gated view — one page, one audience: whoever is on
-  the network right now.
-- Alerts or medication logs.
+- `?mode=demo` — presentation mode with synthetic data, clearly badged
+  "DEMO DATA". The ONLY synthetic path; default is real device data.
+- `?debugData=true` — API → normalized → render diagnostics panel.
+- `?debugGraphics=true` — FPS/frame/packet HUD.
 
-## Implementation constraints
+## Removed (do not reintroduce)
 
-- **Single static page served from the ESP32 itself.** Plain HTML, CSS,
-  and vanilla JavaScript, embedded in firmware or served from onboard
-  storage — no build step, no external CDN dependency, since this has to
-  work with zero internet access, only the local Wi-Fi.
-- **Poll, don't stream.** A plain `setInterval` + `fetch('/data')` loop is
-  sufficient and keeps load on the ESP32's HTTP handler predictable.
-- **Show connection state honestly.** If a poll fails or times out, show a
-  visible "reconnecting…" state rather than leaving the last-known values
-  on screen with no indication they're stale.
-
-## Layout guidance
-
-This is a status readout, not a marketing page — see `website/WEBSITE.md`
-for the project's actual design system, which does not apply here. For the
-dashboard, prioritize:
-
-- Large, legible current values (mode and scores should be readable from
-  arm's length on a phone screen).
-- A clear visual state change when `evaluateAndAct()` fires (e.g. tremor
-  score crossing into "high"), so an evaluator watching the dashboard
-  during a demo can visually confirm the buzzer/actuator response matches
-  what's on screen.
-- No unnecessary chrome, animation, or branding — this page's only job is
-  legibility under classroom/demo conditions.
+Manual telemetry entry, manual medication dose logging, `nl_outbox`
+publish-to-public-site, localStorage patient database, legacy CDN summary
+exporter, legacy brain hero (moved to nothing — replaced by the system
+pipeline scene), webserial reader (dead code), environmental channels no
+hardware produces.

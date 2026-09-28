@@ -1,56 +1,43 @@
-# Safety Alerts Spec
+# PD-SENSE — Alerts (backend-owned)
 
-## Purpose
+## Model
 
-Notify a caregiver or doctor promptly when the stored history (see
-`DOCTOR_WEBSITE.md`) shows a symptom pattern serious enough to warrant
-attention sooner than the next scheduled review.
+The device produces **local cues** (buzzer RAS pulse on confirmed freeze;
+3-beep tremor alert above the critical index) and **candidate events**.
+Persisted cloud alerts are produced ONLY by the backend from stored
+events/readings — one place owns the policy:
 
-## Trigger conditions
+| Alert | Trigger | Severity |
+|---|---|---|
+| prolonged_freeze | `freeze` event with duration ≥ 8 s (`ALERT_PROLONGED_FREEZE_MS`) | warning |
+| possible_fall | `possible_fall` event (impact + stillness) | critical |
+| high_tremor | `tremor_score ≥ 6.5` on 3 consecutive VALID telemetry packets (`ALERT_HIGH_TREMOR_*`) | warning |
 
-- **Sustained severe tremor classification** — a tremor score staying
-  above the severe threshold across multiple consecutive polls, not a
-  single spike.
-- **Unresolved freeze-of-gait event** — a freeze status that persists
-  across multiple polls without returning to normal, i.e. the RAS
-  actuator cueing on-device did not resolve it.
+## Rules implemented in `server/src/services/alertService.js`
 
-Exact numeric thresholds and the "sustained"/"unresolved" poll-count
-windows should be defined as named, documented constants in the alerts
-code — not hard-coded inline — since they will need tuning once real
-sensor behavior is observed.
+1. **First alert after boot always fires.** Cooldown state lives in the
+   database (last alert of that type within `ALERT_COOLDOWN_MS`), not in
+   an in-memory timer initialized at 0 — the historical first-10-minutes
+   suppression bug cannot exist here.
+2. **One alert per episode**, never one per loop iteration (episodes are
+   events; events are deduped by event_id).
+3. **Failure ≠ cooldown.** An alert row write failure surfaces as HTTP
+   500 and the DEVICE-side queue retries the underlying event; the
+   cooldown check only runs on genuine stored alerts. A future delivery
+   bridge (email etc.) moves `open → acknowledged → resolved`, and failed
+   deliveries land as `delivery_failed` for retry — independently of the
+   detection cooldown.
+4. **Language**: alerts are candidates/observations. `possible_fall` is
+   never rendered as a confirmed fall.
 
-## Delivery channels
+## Live Monitor / Doctor Portal display
 
-### Email
-- SMTP using a Gmail app password, **or**
-- SendGrid / EmailJS free tier as an alternative that avoids managing raw
-  SMTP credentials.
+Alerts appear in the live monitor banner area (events timeline) and in
+the doctor portal with severity + lifecycle status; open alerts can be
+acknowledged (`PATCH /api/v1/alerts/:id`).
 
-### WhatsApp
-- CallMeBot's free, simple GET-based API for demo purposes, **or**
-- Twilio WhatsApp sandbox as a more "official-looking" alternative if the
-  demo needs to look production-grade.
+## Device-side parameters (firmware)
 
-Either channel (or both) is acceptable for this scope — pick based on
-what's easiest to demo reliably, since this is a college project rather
-than a production notification service.
-
-## Where this code lives
-
-**Backend-mediated only — never sent from ESP32 firmware.** The doctor-
-website backend, which already holds the polled history, is the only
-place that evaluates trigger conditions and calls out to email/WhatsApp
-APIs. This keeps credentials off a wearable device and keeps the trigger
-logic in one place instead of duplicated between firmware and backend.
-
-## Behavior requirements
-
-- **Debounce per episode.** A sustained condition should produce one alert
-  when it starts, not one alert per poll for the duration of the episode.
-- **Fail without cascading.** A missing/invalid API key or a network
-  failure on the alert-send path must be caught and logged, and must not
-  affect the poller, storage, or analytics running alongside it.
-- **Log every attempted alert**, whether it succeeded or failed, so a
-  demo/evaluation can show the trigger fired even if the actual message
-  delivery isn't live.
+Local cue thresholds live in `firmware/NeuroLoop_Core/config.h`
+(`TREMOR_CRITICAL`, `FALL_JERK_THRESHOLD`, …). The device does not decide
+what becomes a persisted alert.

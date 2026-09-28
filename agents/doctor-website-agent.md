@@ -1,7 +1,21 @@
+<!--
+ SUPERSEDED — v7 rebuild
+ ---------------------------------------------------------------------------
+ This agent brief described the PRE-REBUILD architecture (ESP32 `/data`
+ endpoint, laptop poller, local-only device, Blynk-era constraints). Those
+ contracts no longer exist.
+
+ Current source of truth:
+   docs/ARCHITECTURE.md  — system diagram + rules
+   docs/FIRMWARE.md, docs/FIRMWARE_TELEMETRY.md, docs/SERIAL_COMMANDS.md
+   docs/API.md, docs/DATA_MODEL.md, docs/DASHBOARD.md, docs/DOCTOR_WEBSITE.md
+   docs/SECURITY.md, docs/DEPLOYMENT.md, docs/TROUBLESHOOTING.md
+ Build state: docs/BUILD_ORDER.md · audit baseline: docs/CURRENT_STATE.md
+-->
 # Agent scope: Doctor-Facing Website
 
 Full spec: [`../docs/DOCTOR_WEBSITE.md`](../docs/DOCTOR_WEBSITE.md). This is
-the last subsystem to build â€” it depends on the firmware's `/data` schema
+the last subsystem to build — it depends on the firmware's `/data` schema
 being frozen and on there being real stored history before the chatbot has
 anything to answer from.
 
@@ -16,7 +30,7 @@ anything to answer from.
   medication/dosage entries, and trend-over-time views.
 - The AI chatbot: natural-language Q&A over the *stored summary data*
   only, for the doctor's own use.
-- Medication/dosage entry logging (manual doctor/patient input â€” this is
+- Medication/dosage entry logging (manual doctor/patient input — this is
   the only place medication data is captured; the ESP32 has no notion of
   medication).
 
@@ -24,14 +38,14 @@ anything to answer from.
 
 - Anything on the ESP32 itself. You are a client of `/data`, never a
   server the device depends on.
-- The decision logic for when an alert fires â€” that threshold check reads
+- The decision logic for when an alert fires — that threshold check reads
   from the same stored history you maintain, but the send-side integration
   is `alerts-agent.md`'s scope. You expose the data; alerts consumes it.
 
 ## Hard constraints
 
 1. **Periodic sampling, not a continuous dump.** Poll on an interval (the
-   spec doesn't mandate a single number â€” pick one that gives useful trend
+   spec doesn't mandate a single number — pick one that gives useful trend
    resolution without hammering the ESP32's single HTTP handler) and store
    discrete timestamped snapshots. Do not open a persistent stream.
 2. **The chatbot answers from stored summaries, never raw sensor traffic
@@ -40,7 +54,7 @@ anything to answer from.
    dose?" with no dose actually logged that day), it should say the data
    doesn't cover that, not guess.
 3. **Medication data is doctor/patient-entered, not sensed.** Never infer
-   a dose was taken or missed from motor data alone â€” only from an actual
+   a dose was taken or missed from motor data alone — only from an actual
    logged entry.
 4. **This site is for a doctor, not the patient.** Language, alerts, and
    analytics should assume a clinical reader making judgment calls, not a
@@ -54,3 +68,4 @@ anything to answer from.
   cross-referenced against a logged dose on the same day.
 - The chatbot correctly answers a question grounded in stored data and
   correctly declines a question the stored data can't support.
+

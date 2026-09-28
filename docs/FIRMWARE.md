@@ -1,111 +1,82 @@
-# Firmware Spec — ESP32 (MYOSA Mini stack)
+# PD-SENSE / NeuroLoop — Firmware
 
-## Why this exists
+**Current target:** `firmware/NeuroLoop_Core` (FW version `7.0-rebuild`).
+Everything below describes the code as it exists.
 
-The original PD-SENSE prototype had one core usability bug: raw 50 Hz
-serial output scrolls past faster than a human (or a classroom evaluator)
-can read it, and there was no way to run an isolated test on demand. This
-rewrite fixes both with a state machine, throttled output, and manual
-keyboard-triggered tests.
-
-## State machine
-
-| State | Trigger (serial key) | Behavior |
-|---|---|---|
-| `IDLE` | `0`, or automatic after a test window ends | No active sampling loop; waiting for a mode key |
-| `TREMOR_TEST` | `1` | FFT-based tremor scoring from MPU6050 accel/gyro for a fixed test window (e.g. 15 s), then auto-return to `IDLE` |
-| `TAP_TEST` | `2` | Tap-count/rate detection from MPU6050 for a fixed test window, then auto-return to `IDLE` |
-| `GAIT_TEST` | `3` | Gait/freeze detection from MPU6050 for a fixed test window, then auto-return to `IDLE` |
-| `MANUAL` | `4` | Accepts comma-separated serial input in place of sensor sampling; stays in `MANUAL` until `0` |
-
-Rules:
-- Only one state is active at a time.
-- Every timed test state auto-returns to `IDLE` after its window plus a
-  short reset delay — it does not wait for the user to press `0`.
-- `0` is a hard reset to `IDLE` from any state at any time.
-
-## Manual data-entry mode
-
-Format: comma-separated values typed into the serial monitor, e.g.:
+## Boot path
 
 ```
-8,3,freeze
+setup():  Serial → watchdog(10 s, IDF v5 API) → GPIO (buzzer/haptic LOW)
+          → OLED init (failure never blocks sensing) → sensors init
+          (APDS failure never blocks IMU) → telemetryInit() (NON-blocking)
+          → runCalibration()  → MONITORING
+loop():   handleSerial() → handleGesture() → sensorsHealthTick()
+          → imuSampleTick() (100 Hz self-paced) → gait/tremor (MONITOR)
+          → tap pipeline (TAP_TEST) → updateEvents() → cueTick()
+          → telemetryTick() → throttled status line → OLED refresh
 ```
 
-Interpreted as: tremor score, tap count/rate, gait status — matching
-whatever the equivalent real-sensor tuple would be for that test. Manual
-mode exists because real tremor and gait patterns can't easily be
-physically demonstrated on demand in a classroom setting; typing a value
-simulates the reading without needing a person with Parkinson's present.
+## Application states
 
-**Non-negotiable:** a manually entered tuple must be passed into the exact
-same `evaluateAndAct()` call a real sensor-derived tuple would produce. Do
-not write a separate "manual mode response" path — that would mean the
-demo doesn't actually demonstrate the real system's behavior.
+`BOOT → CALIBRATION → MONITORING`, plus `TAP_TEST` on demand and `FAULT`
+(IMU absent — other subsystems keep running; recovery is automatic via the
+5 s health tick, which triggers recalibration).
 
-## `evaluateAndAct()`
+Calibration is a real state with an OLED countdown (`HOLD STILL`, 5…1).
+Movement above 3× the running baseline fails it: `CALIBRATION FAILED /
+MOVE DETECTED`. Three failures → monitoring continues with the degraded
+baseline floor, flagged `CAL FAILED` on serial status and the system page
+— never silently.
 
-Single shared function, called identically regardless of data origin
-(real sensor or manual entry):
+## Sensor pipeline (preserved from the validated prototype)
 
-- **High tremor score** → buzzer beep.
-- **Gait freeze detected** → actuator pulse implementing RAS (rhythmic
-  auditory/tactile stimulation) — the standard cueing technique used to
-  help a freezing gait resume movement.
+- 100 Hz I2C sampling with spike gate (|a|>8 g / |g|>500°/s samples are
+  dropped, never recorded as zero) and measured-rate/timing stats.
+- Adaptive baseline `calRMS` from calibration; thresholds are relative.
+- Tremor: 256-sample magnitude FFT, Hamming, 3–6 / 6–8 Hz band gating,
+  3-consecutive-window confirmation, EMA smoothing. Output carries an
+  explicit quality: `VALID | LOW_SIGNAL | MOTION_CONTAMINATED | INVALID`.
+- Disease labels removed: the device reports tremor-band activity only.
+- Tap: z-axis moving average, hysteresis edge detect, 175 ms debounce,
+  ITI mean/CoV grade 0–4. Incomplete → INCOMPLETE, never a fake grade.
+- Gait FSM: `REST → WALKING → FREEZE_CANDIDATE → FREEZE → RECOVERY →
+  WALKING`. Candidate/exit windows are the same validated timers; one
+  episode produces exactly ONE `freeze` event with its real duration.
+- Jerk: |d|a|/dt| peak kept for the experimental impact/fall-candidate
+  heuristic (impact > 3 g/s → 3 s stillness → `possible_fall` event).
 
-Exact thresholds for "high tremor score" should be defined as named
-constants near the top of the firmware file, not inline magic numbers, so
-they can be tuned during testing without hunting through the code.
+## OLED (SSD1306 128×64)
 
-## Serial output
+Paged UI, serial-selectable (`page 0..4`, `v` cycles):
 
-- Throttle to **~200 ms** between prints, regardless of underlying sample
-  rate. This is the direct fix for the original scrolling problem.
-- Print current mode, latest score(s), and any action just taken
-  (`evaluateAndAct()` firing), so a human watching serial output can follow
-  what happened without needing the dashboard open.
-
-## `/data` endpoint (frozen contract)
-
-Served via `WebServer.h`. `GET /data` returns JSON reflecting current
-state only — no history, no pagination:
-
-```json
-{
-  "mode": "TREMOR_TEST",
-  "tremor_score": 8,
-  "bradykinesia_grade": 2,
-  "gait_status": "normal"
-}
-```
-
-Field notes:
-- `mode` — one of `IDLE`, `TREMOR_TEST`, `TAP_TEST`, `GAIT_TEST`, `MANUAL`.
-- `tremor_score` — numeric, FFT-derived (or manually entered equivalent).
-- `bradykinesia_grade` — numeric grade derived from tap-test data.
-- `gait_status` — string, e.g. `normal` / `freeze`.
-
-This schema is depended on by the dashboard (polling every ~300 ms), the
-doctor-website poller, the analytics layer, and the future chatbot. Treat
-any field rename, type change, or removal as a breaking change requiring
-this document to be updated first and every consumer checked.
-
-## Sensor suite reference
-
-| Sensor | Role |
+| Page | Contents |
 |---|---|
-| MPU6050 (accel/gyro) | Tremor (FFT), tap detection, gait |
-| APDS9960 | Gesture-based medication logging |
-| DHT22 | Temperature/humidity |
-| SGP30 or MQ-series | Air quality |
-| BMP280 | Pressure |
-| OLED | On-device status display |
-| Buzzer | Audible feedback (`evaluateAndAct()` tremor response) |
-| Actuator | Haptic RAS feedback (`evaluateAndAct()` gait-freeze response) |
+| 0 STATUS | tremor primary + gait + net state + sensor dots |
+| 1 TREMOR | index /10, dominant Hz, quality |
+| 2 GAIT | state, cadence, today's freeze count |
+| 3 TAP | live progress bar + countdown; result (GRADE n / INCOMPLETE) |
+| 4 SYSTEM | IMU/APDS/NET, queue depth/loss, sent/failed, uptime, fw |
 
-## Explicitly out of scope
+Overlays (2.5 s): `MED EVENT RECORDED`, `FREEZE EVENT RECORDED`,
+cue states `FREEZE CUE` / `TREMOR ALERT`. All strings are sized to the
+panel (size-1 ≤ 21 chars; nothing renders outside 128×64).
 
-The original EOI's on-device TinyML tremor classifier is cut for this
-version. Tremor detection here is **FFT-only**. Do not add a model file,
-inference call, or training data pipeline to firmware without a written
-scope change.
+## Serial diagnostic console
+
+Full command reference: `docs/SERIAL_COMMANDS.md`. `help`, `status`,
+`test all` (13 checks), per-subsystem tests, `page N`, sensing `sensors`
+/`timing`/`memory`/`network`/`telemetry`/`events`. `dev` simulation is
+compile-gated (`ENABLE_DEV_DIAGNOSTICS 0`) and drives actuators only.
+
+## Telemetry
+
+See `docs/FIRMWARE_TELEMETRY.md`: schema_version 2 wire contracts,
+bounded queues, paced WiFi FSM, NTP, event idempotency, TLS policy.
+
+## Building / flashing
+
+Arduino IDE (or arduino-cli), ESP32 MYOSA profile; libraries:
+AccelAndGyro, LightProximityAndGesture, oled (MYOSA kit), arduinoFFT,
+SimpleKalmanFilter, ESP32 core with IDF-V5 watchdog API. Fill `config.h`
+locally (WiFi + API_BASE_URL + DEVICE_ID + DEVICE_TOKEN) — placeholders
+are committed on purpose; never commit the real one.

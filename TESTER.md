@@ -1,53 +1,85 @@
-# TESTER.md — Testing Protocol
+# TESTER.md — PD-SENSE acceptance checklist (hardware required)
 
-Purpose: a repeatable process to verify any file or module is correct, usable by a non-coder because pass/fail is judged by test results and visuals, not by reading C++/C#.
+Run on a bench with the ESP32 wired: MPU6050 + APDS9960 + SSD1306 +
+buzzer + haptic, Serial Monitor @ 115200, backend running with real
+Supabase creds (docs/DEPLOYMENT.md).
 
----
+## 1. Standalone serial diagnostics (no website needed)
 
-## 1. Every Function Needs
+| # | Command | Expected |
+|---|---|---|
+| 1.1 | boot | banner, sensors OK, calibration countdown on OLED, `EVT ready` |
+| 1.2 | `help` | full command card prints |
+| 1.3 | `test all` | `[13/13] RESULT: 13/13 PASS` (warnings counted separately) |
+| 1.4 | `test i2c` | 0x3C OLED, 0x39 APDS9960, 0x69 MPU6050 all FOUND |
+| 1.5 | `test imu` | raw AX/AY/AZ plausible; measured rate ~100 Hz |
+| 1.6 | `test apds` | swipe detected; NO medication event is created |
+| 1.7 | `test oled` | every page renders inside a 2.4″ frame, no clipping |
+| 1.8 | `test buzzer` | 1/2/3 short + 1 long; silence after |
+| 1.9 | `test haptic` | 100/250/500 ms pulses; GPIO low after |
+| 1.10 | `test calibration` | PASS when still / FAIL with move detection |
+| 1.11 | `test tremor` | fresh FFT window; VALID while still w/ tremor input, MOTION_CONTAMINATED while shaking |
+| 1.12 | `test gait` | live state/cadence for 6 s |
+| 1.13 | `test tap` | taps register with no bounce double-counting |
+| 1.14 | `test wifi` | CONNECTED with RSSI/IP |
+| 1.15 | `test api` | HTTP 200 from backend health |
+| 1.16 | `test telemetry` | packet JSON printed; queue stats sane |
+| 1.17 | `test memory`, `test timing` | PASS; jitter reported |
+| 1.18 | `status` / `events` / `telemetry` / `network` | counters update; no secrets printed anywhere |
+| 1.19 | `dev tremor 8` | responds `DEV MODE DISABLED` |
 
-- [ ] At least one unit test with a **hand-checkable expected value** (not just "doesn't crash"). Example: "union of two unit spheres 1mm apart → expected volume = X mm³, computed by hand or with an independent tool."
-- [ ] At least one **edge case test**: zero/empty input, maximum/extreme input, coincident or overlapping geometry, tangent surfaces.
-- [ ] A plain-English one-line description of what the test proves, written above the test code.
+## 2. End-to-end data path (the acceptance criterion)
 
----
+2.1 Boot with backend up → within ~15 s the Live Monitor's
+**LIVE ESP32 READINGS** table gets a row; the same `event_id` exists once
+in `readings` (check Supabase table editor).  
+2.2 New row → table highlight, charts point matches the table value,
+metric cards match, pipeline packet animation fires at ingest.  
+2.3 Live badge shows LIVE; unplug the device → STALE within ~45 s →
+OFFLINE within ~120 s.  
+2.4 `?debugData=true` shows backend online + latest packet normalized.  
+2.5 Refresh the page → history persists (backend, not localStorage).  
+2.6 Second browser sees the same data with the token.
 
-## 2. Every Module Needs (before it's frozen)
+## 3. Behavior scenarios
 
-- [ ] All unit tests passing
-- [ ] A **visual check**: run the operation through the viewer, confirm it looks correct, not just numerically "passing" (see `PICOGK_COMPARISON.md` for comparison-based checks)
-- [ ] A **cross-validation check**: same operation run through PicoGK/OpenVDB, compare volume/surface area/vertex count within tolerance
-- [ ] A **fuzz test pass**: random/extreme inputs thrown at the module without crashing or producing nonsense output (negative volume, NaN, exploded geometry)
-- [ ] No test was skipped, weakened, or deleted to make the suite pass
+3.1 **Tap test**: `tap` on serial → 20 taps → OLED GRADE page 3 → events
+timeline shows `tap_test_completed` → tap_tests table row → doctor portal
+tap history. Timeout path → INCOMPLETE, grade NULL in DB.  
+3.2 **Medication gesture**: configured swipe → OLED MED EVENT RECORDED +
+serial EVT → medication_events row → events timeline card. Wrong-direction
+swipe → logged as ignored, no record. Second swipe within 30 s →
+suppressed (cooldown).  
+3.3 **Freeze**: hold a freeze → candidate → confirmed (2 s) → RAS cue on
+device; recover → ONE freeze event with duration; ≥ 8 s → backend creates
+`prolonged_freeze` alert (once per episode; cooldown visible).  
+3.4 **Impact**: sharp jolt + stillness → `possible_fall` event → critical
+alert (candidate language everywhere).  
+3.5 **High tremor**: shaker sustained → `high_tremor` alert after 3
+consecutive VALID windows.  
+3.6 **Offline queue**: kill WiFi → `NET ×`, OLED PENDING, queue counts up
+in `status`; restore → oldest-first drain, no duplicates
+(`already_processed` on the backend log is fine).
 
----
+## 4. Failure isolation
 
-## 3. How a Non-Coder Verifies "Done"
+4.1 Unplug APDS → IMU monitoring + telemetry continue; `APDS FAULT` shows.  
+4.2 Unplug MPU6050 → FAULT state, gestures/display/telemetry continue;
+plug back → auto-recover + recalibrate.  
+4.3 Stop backend → device keeps sensing; dashboard reports backend
+offline; restart → resumes.  
+4.4 Wrong device token → 401 on `test api`; no row appears.
 
-You don't need to read the implementation. You need to confirm:
+## 5. Security spot-checks
 
-1. **Test output is green** — every test in the module's test file passes.
-2. **The AI explained each test in plain English** — if you don't understand what a test is checking, ask it to explain before accepting.
-3. **The viewer shows the expected shape** — if a boolean union of two spheres looks broken, disconnected, or has holes, it's broken regardless of test results.
-4. **The cross-validation numbers are close** — if your kernel's sphere union volume differs from PicoGK's by more than a small tolerance, something is wrong.
-5. **Nothing was silently skipped** — explicitly ask: "did any test get skipped, commented out, or have its expected value loosened to pass?"
+5.1 View-source on the public site: no keys, no patient data blocks.  
+5.2 DevTools → localStorage: only `pds_ui_prefs` (theme/token/patient id).  
+5.3 Supabase anon key from ANYWHERE returns 42501/401 on `readings` now.
 
----
+## 6. Graphics QA
 
-## 4. Test Types Reference
-
-| Type | What it catches | Required for |
-|------|------------------|----------------|
-| Hand-checkable unit test | Basic correctness | Every function |
-| Edge case test | Boundary failures | Every function |
-| Visual check | Errors that look wrong but pass numerically | Every geometry-producing module |
-| Cross-validation vs PicoGK | Silent divergence from correct behavior | Every module before freeze |
-| Fuzz test | Crashes/undefined behavior on unusual input | Every module before freeze |
-
----
-
-## 5. When a Test Fails
-
-1. Don't let AI "fix" the test to pass — the code must be fixed, or the expected value must be independently re-verified as wrong.
-2. Log it in `docs/error-log.md` (module, symptom, root cause, fix, new test added).
-3. Re-run the full module's test suite after any fix, not just the failing test — fixes can break other things.
+6.1 Live monitor: pipeline scene animates only when ingests happen;
+backend stoppage visibly changes links.  
+6.2 `?debugGraphics=true`: fps ≈ 55–60 on a laptop, frame ms stable.  
+6.3 prefers-reduced-motion OS flag → animations freeze, data intact.  
+6.4 Block WebGL (devtools) → schematic SVG/canvas fallback, no blanks.

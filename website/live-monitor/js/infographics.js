@@ -1,0 +1,207 @@
+/* =========================================================
+   PD-SENSE Live Monitor — infographics.js
+   Metric cards, each driven by the SAME normalized latest reading
+   as the table/charts. Every card carries: value, unit, quality
+   state, and an info button opening the explanation drawer.
+   Neutral language only: "tremor-band activity", never diagnosis.
+   ========================================================= */
+window.PDS = window.PDS || {};
+(function () {
+  "use strict";
+  const st = () => window.PDS.state;
+  const $ = (id) => document.getElementById(id);
+
+  const INFO = {
+    tremor: {
+      title: "Tremor index", field: "tremor_score",
+      what: "Relative activity in the 3–8 Hz tremor band, scaled 0–10.",
+      source: "MPU6050 accelerometer (on-device 256-sample FFT at 100 Hz).",
+      how: "Band power share of the window -> 3-window confirmation -> smoothed index.",
+      update: "Every device telemetry packet (~15 s).",
+      quality: "Only shown when quality = VALID; otherwise N/A.",
+      limits: "Movement metric, not a diagnosis. Gross body motion contaminates the window and is flagged MOTION_CONTAMINATED.",
+    },
+    freq: {
+      title: "Dominant frequency", field: "dominant_frequency_hz",
+      what: "Hz of the strongest spectral component in the analysis window.",
+      source: "MPU6050 FFT (device).", how: "Peak bin of the magnitude spectrum.",
+      update: "Every telemetry packet.", quality: "VALID only.",
+      limits: "A frequency marker, not a disease classification.",
+    },
+    gait: {
+      title: "Gait state", field: "gait_state",
+      what: "Device gait state machine output.",
+      source: "MPU6050 gyro channel (device).",
+      how: "RMS walk/rest thresholds + cadence collapse confirmation (2 s) + recovery windows.",
+      update: "Every telemetry packet.", quality: "Always reported while IMU is OK.",
+      limits: "FREEZE is a candidate state from wrist motion; not a clinical FoG diagnosis.",
+    },
+    cadence: {
+      title: "Cadence", field: "cadence_hz",
+      what: "Detected steps per second over a rolling 4 s window.",
+      source: "MPU6050 gyro (device).", how: "Falling-edge step detection through adaptive threshold.",
+      update: "Every telemetry packet.", quality: "Valid while WALKING; 0 while at rest.",
+      limits: "Wrist-mounted estimate; differs from footswitch cadence.",
+    },
+    brady: {
+      title: "Bradykinesia (tap test)", field: null,
+      what: "Grade 0–4 from inter-tap-interval mean/variance in the 20-tap test.",
+      source: "MPU6050 tap detector (device), persisted as tap_test_completed events.",
+      how: "ITI mean + coefficient of variation thresholds.",
+      update: "After each completed tap test.",
+      quality: "INCOMPLETE tests never produce a grade.",
+      limits: "Experimental screening score; not a clinical rating scale.",
+    },
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* ---------------- per-metric renderers ---------------- */
+
+  function tremorCard(r) {
+    if (!r || r.tremor_score == null) return muted("TREMOR INDEX", "N/A", r ? r.tremor_quality : "NO DATA");
+    const pct = Math.min(10, Math.max(0, r.tremor_score)) * 10;
+    return `
+      <div class="ig-label">TREMOR INDEX</div>
+      <div class="ig-value">${r.tremor_score.toFixed(1)}<span class="ig-unit"> /10</span></div>
+      <div class="ig-bar"><div class="ig-bar-fill" style="width:${pct}%"></div>
+        <div class="ig-bar-marks">${[0, 2, 4, 6, 8, 10].map((v) => `<span>${v}</span>`).join("")}</div></div>
+      <div class="ig-foot"><span class="q-badge q-${r.tremor_quality.toLowerCase()}">${r.tremor_quality}</span></div>`;
+  }
+
+  function freqCard(r) {
+    if (!r || r.dominant_frequency_hz == null) return muted("FREQUENCY", "N/A", r ? r.tremor_quality : "NO DATA");
+    const f = r.dominant_frequency_hz;
+    const pct = Math.min(10, Math.max(0, f)) * 10;
+    return `
+      <div class="ig-label">TREMOR-BAND ACTIVITY — DOMINANT FREQUENCY</div>
+      <div class="ig-value">${f.toFixed(2)}<span class="ig-unit"> Hz</span></div>
+      <div class="ig-bar"><div class="ig-bar-marker" style="left:${pct}%"></div>
+        <div class="ig-bar-marks">${[0, 2, 4, 6, 8, 10].map((v) => `<span>${v}</span>`).join("")}</div></div>
+      <div class="ig-foot"><span class="q-badge q-${r.tremor_quality.toLowerCase()}">${r.tremor_quality}</span></div>`;
+  }
+
+  function gaitCard(r) {
+    const s = r ? r.gait_state : null;
+    const states = ["REST", "WALKING", "FREEZE_CANDIDATE", "FREEZE", "RECOVERY"];
+    const lamp = (x) => `<span class="lamp${s === x ? " on" : ""}">${x.replace("_", " ")}</span>`;
+    return `
+      <div class="ig-label">GAIT STATE</div>
+      <div class="ig-value small">${s ? esc(s.replace("_", " ")) : "—"}</div>
+      <div class="lamp-row">${states.map(lamp).join("")}</div>
+      <div class="ig-foot">${r && r.freeze_active ? '<span class="q-badge q-invalid">FREEZE ACTIVE</span>' : ""}</div>`;
+  }
+
+  let pulseTimer = null;
+  function cadenceCard(r) {
+    const c = r ? r.cadence_hz : null;
+    const body = c == null || c === 0 ? `
+      <div class="ig-label">CADENCE</div>
+      <div class="ig-value">—<span class="ig-unit"> UNAVAILABLE</span></div>
+      <div class="ig-foot">no steps detected in window</div>` : `
+      <div class="ig-label">CADENCE</div>
+      <div class="ig-value">${c.toFixed(2)}<span class="ig-unit"> Hz</span></div>
+      <div class="cad-pulse" id="cad-pulse"></div>
+      <div class="ig-foot">pulse below follows the measured cadence</div>`;
+    /* real-rate pulse: re-arm the animation to the actual cadence */
+    clearTimeout(pulseTimer);
+    pulseTimer = setTimeout(() => {
+      const el = document.getElementById("cad-pulse");
+      if (el && c) {
+        el.style.animation = "none";
+        el.offsetHeight;                          // restart CSS animation
+        el.style.animation = `cadbeat ${1 / c}s ease-out infinite`;
+      }
+    }, 0);
+    return body;
+  }
+
+  function bradyCard() {
+    const t = st().tapTests[0];
+    if (!t) return muted("BRADYKINESIA", "NO TAP TEST", "run a tap test on the device");
+    const done = t.quality === "COMPLETE";
+    return `
+      <div class="ig-label">BRADYKINESIA — TAP TEST</div>
+      <div class="ig-value small">${done ? `GRADE ${t.bradykinesia_grade} <span class="ig-unit">${esc(t.bradykinesia_label || "")}</span>` : "INCOMPLETE"}</div>
+      <div class="ig-foot">${t.tap_count}/${t.target_count} taps
+        ${t.duration_ms ? " · " + (t.duration_ms / 1000).toFixed(1) + " s" : ""}
+        · ${new Date(t.completed_at).toLocaleString()}</div>`;
+  }
+
+  function muted(label, value, note) {
+    return `<div class="ig-label">${label}</div>
+      <div class="ig-value muted-val">${value}</div>
+      <div class="ig-foot">${esc(note)}</div>`;
+  }
+
+  /* ---------------- device health + events ---------------- */
+
+  function healthPanel() {
+    const d = st().device, latest = st().latest, f = st().freshness;
+    const dot = (ok) => `<span class="dot ${ok ? "ok" : "bad"}"></span>`;
+    const row = (label, ok, val) =>
+      `<div class="health-row"><span>${label}</span><span>${dot(ok)} ${val}</span></div>`;
+    const ageS = f.age_ms == null ? null : Math.round(f.age_ms / 1000);
+    return `
+      ${row("IMU (MPU6050)", !latest || latest && latest.sensor_imu !== "FAULT", latest ? "OK" : "—")}
+      ${row("APDS9960", !latest || latest.sensor_apds !== "FAULT", latest ? "OK" : "—")}
+      ${row("Backend", st().backend === "online", st().backend.toUpperCase())}
+      ${row("Database", st().backendDb === "connected", st().backendDb.toUpperCase())}
+      ${row("Realtime", st().realtime === "connected", st().realtime.toUpperCase())}
+      ${d ? row("Device " + d.device_id, f.state === "online", `${f.state.toUpperCase()}${ageS != null ? " · " + ageS + "s ago" : ""}`) : ""}
+      ${latest && latest.uptime_ms != null ? `<div class="health-row"><span>Device uptime</span><span>${Math.round(latest.uptime_ms / 60000)} min</span></div>` : ""}
+      ${latest && latest.queue_dropped ? `<div class="health-row warn"><span>TELEMETRY LOSS</span><span>${latest.queue_dropped} dropped</span></div>` : ""}`;
+  }
+
+  /* ---------------- root render ---------------- */
+
+  function render() {
+    const latest = st().latest;
+    const grid = $("metrics-grid");
+    if (grid) {
+      const cards = [
+        { id: "tremor", html: tremorCard(latest) },
+        { id: "freq", html: freqCard(latest) },
+        { id: "gait", html: gaitCard(latest) },
+        { id: "cadence", html: cadenceCard(latest) },
+        { id: "brady", html: bradyCard() },
+      ];
+      for (const c of cards) {
+        let el = document.getElementById("ig-" + c.id);
+        if (!el) continue;
+        el.innerHTML = c.html +
+          `<button class="info-btn" data-metric="${c.id}" title="About this metric">i</button>`;
+      }
+      grid.querySelectorAll(".info-btn").forEach((b) =>
+        b.onclick = () => showInfo(b.dataset.metric));
+    }
+    const hp = $("device-health");
+    if (hp) hp.innerHTML = healthPanel();
+  }
+
+  function showInfo(metricId) {
+    const m = INFO[metricId];
+    if (!m) return;
+    $("info-title").textContent = m.title;
+    $("info-body").innerHTML = `
+      <p><b>WHAT IT IS</b><br>${m.what}</p>
+      <p><b>SOURCE</b><br>${m.source}</p>
+      <p><b>HOW IT IS CALCULATED</b><br>${m.how}</p>
+      <p><b>UPDATE INTERVAL</b><br>${m.update}</p>
+      <p><b>QUALITY</b><br>${m.quality}</p>
+      <p><b>LIMITATIONS</b><br>${m.limits}</p>`;
+    $("info-drawer").hidden = false;
+  }
+
+  function init() {
+    const closer = $("info-close");
+    if (closer) closer.onclick = () => { $("info-drawer").hidden = true; };
+    render();
+    st().subscribe((topic) => {
+      if (["reading", "event", "patch", "tapTests", "health"].includes(topic)) render();
+    });
+  }
+
+  window.PDS.infographics = { init, render };
+})();
