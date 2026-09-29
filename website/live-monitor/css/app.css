@@ -29,6 +29,12 @@ body {
 .dim { color: var(--dim); }
 button { font: inherit; }
 
+/* CRITICAL reset: the [hidden] attribute must always win over class display
+   rules (the info drawer / banners were stuck visible because of this) */
+[hidden] { display: none !important; }
+
+/* ------------------------------------------------ */
+
 /* ---------------- top bar ---------------- */
 .topbar {
   position: sticky; top: 0; z-index: 40;
@@ -40,6 +46,10 @@ button { font: inherit; }
 .wordmark .thin { font-weight: 400; color: var(--dim); }
 .topbar-right { display: flex; align-items: center; gap: 18px; }
 .hdr-meta-block { display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; }
+.hdr-select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 10px; font-size: 12.5px; max-width: 220px;
+}
 .clock { color: var(--dim); font-size: 13px; }
 
 .live-badge {
@@ -84,8 +94,11 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px; display: grid; gap: 22p
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
 .metric-card {
   position: relative; background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: 8px; padding: 14px; min-height: 120px;
+  border-radius: 10px; padding: 16px 16px 14px; min-height: 132px;
+  transition: border-color .18s ease, transform .18s ease;
 }
+.metric-card:hover { border-color: rgba(154, 167, 178, .34); transform: translateY(-1px); }
+.metric-card:nth-child(odd) { background: #151b26; }
 .ig-label { font: 600 10px/1.2 var(--mono); letter-spacing: .14em; color: var(--dim); }
 .ig-value { font: 600 30px/1.2 var(--mono); margin: 10px 0 6px; }
 .ig-value.small { font-size: 20px; }
@@ -178,8 +191,10 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px; display: grid; gap: 22p
 /* ---------------- health / summary ---------------- */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 .health-panel { display: grid; gap: 7px; margin-top: 10px; }
-.health-row { display: flex; justify-content: space-between; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+.health-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+.health-row .hsub { color: var(--faint); font-size: 11px; margin-top: 1px; }
 .health-row.warn { border-color: rgba(201, 162, 90, .5); color: var(--warn); }
+.dot.na { background: var(--faint); }
 .history-summary { font-size: 13px; display: grid; gap: 6px; margin-top: 10px; }
 .hs-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; }
 .hs-row span:first-child { color: var(--dim); }
@@ -189,10 +204,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px; display: grid; gap: 22p
 .btn {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+  transition: border-color .15s ease, background .15s ease;
 }
-.btn:hover { border-color: var(--dim); }
+.btn:hover { border-color: var(--dim); background: #1a2230; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #0c1014; font-weight: 600; }
 .btn.small { padding: 4px 10px; font-size: 12px; }
+.info-card { width: min(560px, 92vw); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+#rt-colpanel { box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 5px 8px; font-size: 12px;

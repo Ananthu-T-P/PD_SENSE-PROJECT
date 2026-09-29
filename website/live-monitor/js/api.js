@@ -40,6 +40,31 @@ window.PDS = window.PDS || {};
   const getHealth = () => req("/api/health");
   const getHealthDatabase = () => req("/api/health/database");
 
+  /* The page may be opened via a static server (Live Server :5500) while the
+     backend lives on :3000. Probes in order: configured base -> same origin
+     -> remembered/localhost:3000. Remembers the first working base. */
+  async function ensureReachable() {
+    const candidates = [];
+    if (cfg().apiBase !== null) candidates.push(cfg().apiBase ?? "");
+    if (location.protocol.startsWith("http") && !candidates.includes("")) candidates.push("");
+    if (!candidates.includes("http://localhost:3000")) candidates.push("http://localhost:3000");
+    for (const base of candidates) {
+      try {
+        const url = new URL((base || location.origin) + "/api/health");
+        const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        if (r.ok) {
+          if (cfg().apiBase !== (base || null)) {
+            cfg().apiBase = base || "";
+            cfg().prefs.api = cfg().apiBase;
+            cfg().savePrefs();
+          }
+          return base || "";
+        }
+      } catch { /* try next */ }
+    }
+    return null;   // nothing answered — UI shows backend-offline guidance
+  }
+
   /* ---------------- data reads ---------------- */
   const getPatients = () => req("/api/v1/patients").then((r) => r.data);
   const getDevices = () => req("/api/v1/devices").then((r) => r.data);
@@ -93,7 +118,7 @@ window.PDS = window.PDS || {};
   }
 
   window.PDS.api = {
-    getHealth, getHealthDatabase, getPatients, getDevices, getDeviceStatus,
+    getHealth, getHealthDatabase, ensureReachable, getPatients, getDevices, getDeviceStatus,
     getLatestReading, getReadings, getEvents, getAlerts,
     getMedicationEvents, getTapTests, getPatientSummary, getAnalytics,
     ackAlert, exportCsvUrl, openStream,

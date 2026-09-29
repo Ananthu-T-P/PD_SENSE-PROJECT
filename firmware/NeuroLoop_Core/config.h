@@ -129,12 +129,9 @@
 #define WIFI_SSID               "YOUR_WIFI_SSID"
 #define WIFI_PASS               "YOUR_WIFI_PASSWORD"
 
-/* Backend base URL, no trailing slash. LAN demo: http://<laptop-ip>:3000
- * If the backend is behind HTTPS and you cannot provision certs on the
- * ESP32, set ALLOW_INSECURE_TLS to 1 as a documented prototype fallback. */
-#define API_BASE_URL            "http://192.168.1.10:3000"
+#define API_BASE_URL            "http://192.168.1.XXX:3000"   // <-- your laptop LAN IP
 #define DEVICE_ID               "pd-sense-01"
-#define DEVICE_TOKEN            "CHANGE_ME_DEVICE_TOKEN"
+#define DEVICE_TOKEN            "PASTE_DEVICE_TOKEN_HERE"     // MUST match DEVICE_SEED token above
 
 #define ALLOW_INSECURE_TLS      0    // 0 = require valid TLS on https URLs
                                      // (see docs/SECURITY.md — TLS on LAN caveat)

@@ -13,6 +13,7 @@
 #include <esp_task_wdt.h>
 #include <esp_system.h>
 #include <Wire.h>
+#include <WiFi.h>
 #include "config.h"
 #include "sensors.h"
 #include "display.h"

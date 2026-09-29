@@ -19,6 +19,7 @@
   const fmtT = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
   async function boot() {
+    await api().ensureReachable();
     try {
       await api().getHealth();
       const dbh = await api().getHealthDatabase();
@@ -34,13 +35,16 @@
     }
 
     const patients = await api().getPatients().catch(() => []);
-    $("patient-select").innerHTML = patients.map((p) =>
-      `<option value="${esc(p.id)}">${esc(p.display_name || p.id)} (${esc(p.id)})</option>`).join("");
     if (!patients.length) {
+      $("patient-select").innerHTML = "<option>— no patients (check backend) —</option>";
+      $("patient-select").disabled = true;
       $("empty-state").hidden = false;
-      $("empty-state").textContent = "No patients registered. Register a device/patient on the backend (docs/DEPLOYMENT.md).";
+      $("empty-state").innerHTML = "No patients registered, or the backend cannot be reached. Start <code>server/</code> (docs/DEPLOYMENT.md), then reload. If opened via Live Server/file:// add <code>?api=http://&lt;backend&gt;:3000&amp;token=&lt;DASHBOARD_TOKEN&gt;</code> once.";
       return;
     }
+    $("patient-select").disabled = false;
+    $("patient-select").innerHTML = patients.map((p) =>
+      `<option value="${esc(p.id)}">${esc(p.display_name || p.id)} (${esc(p.id)})</option>`).join("");
     patientId = (cfg().prefs.patientId && patients.some((p) => p.id === cfg().prefs.patientId))
       ? cfg().prefs.patientId : patients[0].id;
     $("patient-select").value = patientId;

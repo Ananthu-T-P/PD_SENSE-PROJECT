@@ -60,13 +60,16 @@ window.PDS = window.PDS || {};
     else if (f.state === "online") { cls = "live"; txt = demo ? "DEMO DATA" : "LIVE"; }
     else if (f.state === "stale") { cls = "stale"; txt = "STALE — LAST KNOWN"; }
     else if (f.state === "never_seen") { txt = "NO TELEMETRY"; }
-    badge.className = "live-badge " + cls;
-    badge.innerHTML = `<span class="dot ${cls === "live" ? "ok" : "bad"}"></span> ${txt}`;
+    if (badge) {
+      badge.className = "live-badge " + cls;
+      badge.innerHTML = `<span class="dot ${cls === "live" ? "ok" : "bad"}"></span> ${txt}`;
+    }
 
-    $("hdr-meta").textContent = st().patient
+    const meta = $("hdr-meta"), upd = $("hdr-updated");
+    if (meta) meta.textContent = st().patient
       ? `${st().patient.display_name || st().patient.id} · device ${st().device ? st().device.device_id : "—"}`
       : "";
-    $("hdr-updated").textContent = st().latest
+    if (upd) upd.textContent = st().latest
       ? `last packet ${new Date(st().latest.timestamp).toLocaleTimeString()} · ${f.age_ms == null ? "" : Math.max(0, Math.round(f.age_ms / 1000)) + " s ago"}`
       : "no packet received yet";
   }
@@ -97,41 +100,49 @@ window.PDS = window.PDS || {};
 
     if (cfg().demo) { startDemo(); refreshHeader(); return; }
 
-    /* patient list drives the selector */
+    /* auto-discover the backend when opened from Live Server/file:// */
+    await api().ensureReachable();           // null-silent; badges say OFFLINE below
+
+    /* patient list drives the selector (same code used for offline recovery) */
     try {
       await checkBackend(true);
-      const patients = await api().getPatients();
-      const sel = $("patient-select");
-      sel.innerHTML = patients.map((p) =>
-        `<option value="${esc(p.id)}">${esc(p.display_name || p.id)} (${esc(p.id)})</option>`).join("");
-      const want = cfg().prefs.patientId && patients.some((p) => p.id === cfg().prefs.patientId)
-        ? cfg().prefs.patientId : (patients[0] && patients[0].id);
-      if (!want) {
-        $("empty-state").hidden = false;
-        $("empty-state").innerHTML = "<b>No patients registered.</b> Register a device against a patient on the backend (docs/DEPLOYMENT.md).";
-      } else {
-        cfg().prefs.patientId = want; cfg().savePrefs();
-        sel.onchange = () => { cfg().prefs.patientId = sel.value; cfg().savePrefs(); resetData(); loadAll(sel.value); };
-        sel.value = want;
-        await loadAll(want);
-      }
+      await bootstrapPatients();
     } catch (err) {
       st().set({ backend: "offline" }, "health");
       refreshHeader();
+      $("empty-state").hidden = false;
       if (String(err.message).includes("token")) {
-        $("empty-state").hidden = false;
-        $("empty-state").innerHTML = "Backend requires a dashboard token. Open with <code>?token=YOUR_TOKEN</code> (docs/SECURITY.md).";
+        $("empty-state").innerHTML = "Backend requires a dashboard token. Open with <code>?token=YOUR_DASHBOARD_TOKEN</code> once; it is remembered as a browser preference (docs/SECURITY.md).";
+      } else {
+        $("empty-state").innerHTML =
+          `<b>BACKEND OFFLINE / NOT REACHED.</b> Nothing on this page can appear without it.<br>
+           1) On the demo laptop: <code>cd server &amp;&amp; npm start</code> (needs <code>.env</code> — see docs/DEPLOYMENT.md).<br>
+           2) If you opened this via Live Server / file://, pass the backend once:
+           <code>?api=http://&lt;laptop-ip&gt;:3000&amp;token=&lt;DASHBOARD_TOKEN&gt;</code> (it's remembered).<br>
+           3) Check <code>GET /api/health/database</code> — 503 means the Supabase migration/creds are missing.<br>
+           <span class="dim">Layer-by-layer diagnosis: docs/TROUBLESHOOTING.md</span>`;
       }
     }
 
-    /* primary: SSE; fallback + safety net: polling */
-    stream = api().openStream((kind, data) => {
-      if (kind === "reading") st().ingestReading(data);
-      if (kind === "event") { st().ingestEvent(data); pullAux(); }
-      if (kind === "alert") pullAlerts();
-    }, (s) => st().set({ realtime: s }, "health"));
+    /* primary: SSE; fallback + safety net: polling (poll also revives SSE
+       after a backend outage) */
+    const openStreamOnce = () => {
+      if (stream || st().backend !== "online") return;
+      stream = api().openStream((kind, data) => {
+        if (kind === "reading") st().ingestReading(data);
+        if (kind === "event") { st().ingestEvent(data); pullAux(); }
+        if (kind === "alert") pullAlerts();
+      }, (s) => {
+        st().set({ realtime: s }, "health");
+        if (s === "disconnected") { if (stream) { stream.close(); stream = null; } }
+      });
+    };
+    openStreamOnce();
 
-    pollTimer = setInterval(pollTick, cfg().pollMs);
+    pollTimer = setInterval(async () => {
+      await pollTick();
+      openStreamOnce();
+    }, cfg().pollMs);
     setInterval(tickFreshness, 2000);
     await pollTick();
   }
@@ -206,12 +217,34 @@ window.PDS = window.PDS || {};
     refreshHeader();
   }
 
+  async function bootstrapPatients() {
+    const patients = await api().getPatients();
+    const sel = $("patient-select");
+    if (patients.length && sel) {
+      sel.hidden = false;
+      sel.innerHTML = patients.map((p) =>
+        `<option value="${esc(p.id)}">${esc(p.display_name || p.id)} (${esc(p.id)})</option>`).join("");
+      const want = cfg().prefs.patientId && patients.some((p) => p.id === cfg().prefs.patientId)
+        ? cfg().prefs.patientId : patients[0].id;
+      cfg().prefs.patientId = want; cfg().savePrefs();
+      sel.onchange = () => { cfg().prefs.patientId = sel.value; cfg().savePrefs(); resetData(); loadAll(sel.value); };
+      sel.value = want;
+      await loadAll(want);
+    } else {
+      $("empty-state").hidden = false;
+      $("empty-state").innerHTML = "<b>No patients registered.</b> The device registry seed in <code>server/.env</code> (DEVICE_SEED) creates the first one — restart the backend after setting it (docs/DEPLOYMENT.md).";
+    }
+  }
+
   async function pollTick() {
     if (cfg().demo) return;
     const ok = await checkBackend(false);
     if (!ok) { return; }
     const pid = st().patient && st().patient.id;
-    if (!pid) return;
+    if (!pid) {                    // recovered after an offline boot
+      try { await bootstrapPatients(); $("empty-state").hidden = true; } catch { /* next poll */ }
+      return;
+    }
     try {
       const latest = await api().getLatestReading(pid);
       if (latest && latest.data) {

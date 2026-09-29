@@ -18,7 +18,10 @@ window.PDS = window.PDS || {};
   window.PDS.config = {
     /* same-origin default: backend serves this site on :3000.
        Override with ?api=http://host:3000 when opened from file:// */
-    apiBase: qs.get("api") || (location.protocol === "file:" ? (prefs.api || "http://localhost:3000") : ""),
+    /* same-origin default: backend serves this site on :3000.
+       When opened from Live Server / file://, we try the remembered or
+       localhost:3000 backend automatically (see ensureReachable). */
+    apiBase: qs.get("api") || (location.port === "3000" ? "" : (prefs.api || null)),
     token: prefs.token || null,
 
     demo,

@@ -139,19 +139,26 @@ window.PDS = window.PDS || {};
 
   function healthPanel() {
     const d = st().device, latest = st().latest, f = st().freshness;
-    const dot = (ok) => `<span class="dot ${ok ? "ok" : "bad"}"></span>`;
-    const row = (label, ok, val) =>
-      `<div class="health-row"><span>${label}</span><span>${dot(ok)} ${val}</span></div>`;
-    const ageS = f.age_ms == null ? null : Math.round(f.age_ms / 1000);
+    const noData = !latest;
+    const dot = (state) => `<span class="dot ${state === true ? "ok" : state === false ? "bad" : "na"}"></span>`;
+    /* state: true=ok (green), false=bad (red), null=no data yet (dim) */
+    const row = (label, ok, val, sub) =>
+      `<div class="health-row" title="${sub || ""}">
+         <span>${label}${sub ? `<div class="hsub">${sub}</div>` : ""}</span>
+         <span>${dot(ok)} ${val}</span>
+       </div>`;
+    const ageS = f.age_ms == null ? null : Math.max(0, Math.round(f.age_ms / 1000));
     return `
-      ${row("IMU (MPU6050)", !latest || latest && latest.sensor_imu !== "FAULT", latest ? "OK" : "—")}
-      ${row("APDS9960", !latest || latest.sensor_apds !== "FAULT", latest ? "OK" : "—")}
-      ${row("Backend", st().backend === "online", st().backend.toUpperCase())}
-      ${row("Database", st().backendDb === "connected", st().backendDb.toUpperCase())}
-      ${row("Realtime", st().realtime === "connected", st().realtime.toUpperCase())}
-      ${d ? row("Device " + d.device_id, f.state === "online", `${f.state.toUpperCase()}${ageS != null ? " · " + ageS + "s ago" : ""}`) : ""}
-      ${latest && latest.uptime_ms != null ? `<div class="health-row"><span>Device uptime</span><span>${Math.round(latest.uptime_ms / 60000)} min</span></div>` : ""}
-      ${latest && latest.queue_dropped ? `<div class="health-row warn"><span>TELEMETRY LOSS</span><span>${latest.queue_dropped} dropped</span></div>` : ""}`;
+      <div class="health-row"><span><b>What is this?</b></span>
+        <span class="dim" style="max-width:60%;text-align:right">Per-hop status of the data path — hardware, backend, database, live feed — and how fresh the last packet is.</span></div>
+      ${row("IMU (MPU6050)", noData ? null : latest.sensor_imu === "OK", noData ? "NO DATA" : (latest.sensor_imu === "OK" ? "OK" : "FAULT"), "motion sensor on the wristband")}
+      ${row("APDS9960", noData ? null : latest.sensor_apds === "OK", noData ? "NO DATA" : (latest.sensor_apds === "OK" ? "OK" : "FAULT"), "gesture sensor (medication events)")}
+      ${row("Backend API", st().backend === "online", st().backend.toUpperCase(), "Node server that receives device packets")}
+      ${row("Database", st().backendDb === "connected", st().backendDb.toUpperCase(), "Supabase — persistent storage")}
+      ${row("Realtime feed", st().realtime === "connected", st().realtime.toUpperCase(), "SSE push; polling is the fallback")}
+      ${row("Device liveness", f.state === "online", f.state === "never_seen" ? "NEVER SEEN" : `${f.state.toUpperCase()}${ageS != null ? " · " + ageS + "s ago" : ""}`, d ? d.device_id : "no telemetry received yet")}
+      ${latest && latest.uptime_ms != null ? row("Device uptime", null, Math.round(latest.uptime_ms / 60000) + " min", "since last device boot") : ""}
+      ${latest && latest.queue_dropped ? row("TELEMETRY LOSS", false, latest.queue_dropped + " dropped", "queue overflow on device — data lost", ) : ""}`;
   }
 
   /* ---------------- root render ---------------- */
