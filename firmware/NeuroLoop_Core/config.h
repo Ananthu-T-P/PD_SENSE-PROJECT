@@ -125,13 +125,13 @@
 /* ------------------------------------------------------------------------ */
 #define TELEMETRY_ENABLED       1    // set 0 to compile the layer out completely
 
-/* TODO(setup): LOCAL VALUES — do NOT commit real credentials. */
-#define WIFI_SSID               "vivo 1807"
-#define WIFI_PASS               "123456789"
+/* TODO(setup): fill in before flashing. Never commit real credentials. */
+#define WIFI_SSID               "YOUR_WIFI_SSID"
+#define WIFI_PASS               "YOUR_WIFI_PASSWORD"
 
-#define API_BASE_URL            "http://192.168.43.101:3000"   // <-- laptop LAN IP (ipconfig)
+#define API_BASE_URL            "http://192.168.1.XXX:3000"   // <-- your laptop LAN IP
 #define DEVICE_ID               "pd-sense-01"
-#define DEVICE_TOKEN            "dev-secret-123"     // MUST match DEVICE_SEED token in server/.env
+#define DEVICE_TOKEN            "PASTE_DEVICE_TOKEN_HERE"     // MUST match DEVICE_SEED token above
 
 #define ALLOW_INSECURE_TLS      0    // 0 = require valid TLS on https URLs
                                      // (see docs/SECURITY.md — TLS on LAN caveat)
