@@ -227,8 +227,15 @@ window.PDS = window.PDS || {};
       const want = cfg().prefs.patientId && patients.some((p) => p.id === cfg().prefs.patientId)
         ? cfg().prefs.patientId : patients[0].id;
       cfg().prefs.patientId = want; cfg().savePrefs();
-      sel.onchange = () => { cfg().prefs.patientId = sel.value; cfg().savePrefs(); resetData(); loadAll(sel.value); };
+      sel.onchange = () => {
+        const p = patients.find((x) => x.id === sel.value);
+        cfg().prefs.patientId = sel.value; cfg().savePrefs();
+        if (p) st().set({ patient: p }, "patch");
+        resetData(); loadAll(sel.value);
+      };
       sel.value = want;
+      const chosen = patients.find((p) => p.id === want);
+      if (chosen) st().set({ patient: chosen }, "patch");   // ← the state link that was missing
       await loadAll(want);
     } else {
       $("empty-state").hidden = false;

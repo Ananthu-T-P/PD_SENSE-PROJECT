@@ -158,7 +158,7 @@ window.PDS = window.PDS || {};
   function set(patch, topic = "patch") { Object.assign(state, patch); emit(topic); }
 
   window.PDS.state = Object.assign(state, {
-    subscribe, emit, ingestReading, ingestEvent, setReadings,
+    subscribe, emit, ingestReading, ingestEvent, setReadings, set,
     normalizeReading, normalizeEvent,
   });
 })();

@@ -245,25 +245,42 @@ window.PDS = window.PDS || {};
     renderer.render(scene, cam);
   }
 
-  /* ---------------- main loop ---------------- */
+  /* ---------------- main loop ----------------
+     Hardening rules (learned from the "animation does not work" field bug):
+       1. a frame exception must NEVER kill the rAF chain (try/finally)
+       2. WebGL/renderer failure degrades to the 2D schematic, never blank
+       3. a watchdog re-arms the loop if rAF gets throttled/paused
+   ---------------------------------------------------------------- */
 
   let running = false;
+  let lastFrameMs = 0;
+  let loopErrLogged = false;
 
   function loop(nowMs) {
     if (!running) return;
     const t0 = performance.now();
-    const mainCv = document.getElementById("pipeline-canvas");
-    if (mainCv) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const cw = mainCv.clientWidth * dpr, ch = mainCv.clientHeight * dpr;
-      if (mainCv.width !== cw || mainCv.height !== ch) { mainCv.width = cw; mainCv.height = ch; }
-      drawSchematic(mainCv, nowMs);
+    try {
+      const mainCv = document.getElementById("pipeline-canvas");
+      if (mainCv) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cw = mainCv.clientWidth * dpr, ch = mainCv.clientHeight * dpr;
+        if (mainCv.width !== cw || mainCv.height !== ch) { mainCv.width = cw; mainCv.height = ch; }
+        if (cw > 0 && ch > 0) drawSchematic(mainCv, nowMs);
+      }
+      drawThree(nowMs, 16);
+      FPS.frameMs = performance.now() - t0;
+      FPS.frames++;
+      lastFrameMs = performance.now();
+      if (nowMs - FPS.t >= 1000) { FPS.fps = FPS.frames; FPS.frames = 0; FPS.t = nowMs; }
+    } catch (err) {
+      if (!loopErrLogged) {                       /* log once, keep the loop alive */
+        loopErrLogged = true;
+        console.warn("[graphics] frame error (loop continues):", err && err.message);
+        if (window.PDS.diagnostics) window.PDS.diagnostics.note("graphics frame error: " + (err && err.message));
+        three = null;                             /* 3D may be the broken part — degrade */
+      }
     }
-    drawThree(nowMs, 16);
-    FPS.frameMs = performance.now() - t0;
-    FPS.frames++;
-    if (nowMs - FPS.t >= 1000) { FPS.fps = FPS.frames; FPS.frames = 0; FPS.t = nowMs; }
-    requestAnimationFrame(loop);
+    requestAnimationFrame(loop);                   /* ALWAYS reschedule */
   }
 
   function spawnPacket(kind) {
@@ -274,9 +291,18 @@ window.PDS = window.PDS || {};
   function init() {
     pullData();
     const host3d = document.getElementById("device-3d");
-    if (host3d) initThree(host3d);
+    if (host3d) {
+      try {
+        initThree(host3d);
+      } catch (err) {                             /* WebGL unavailable/broken -> 2D only */
+        console.warn("[graphics] 3D init failed, using fallback:", err && err.message);
+        const fb = host3d.querySelector(".scene-fallback");
+        if (fb) fb.hidden = false;
+        three = null;
+      }
+    }
 
-    st().subscribe((topic, s, payload) => {
+    st().subscribe((topic) => {
       pullData();
       if (topic === "reading" || topic === "event") spawnPacket(topic === "event" ? "event" : "reading");
     });
@@ -287,11 +313,22 @@ window.PDS = window.PDS || {};
     if (holder && "IntersectionObserver" in window) {
       new IntersectionObserver((es) => {
         const vis = es[0].isIntersecting;
-        if (vis && !running) { running = true; requestAnimationFrame(loop); }
+        if (vis && !running) { running = true; lastFrameMs = 0; }
         if (!vis) running = false;
       }, { threshold: 0.05 }).observe(holder);
     }
     requestAnimationFrame(loop);
+
+    /* watchdog: if rAF stalls while the page is VISIBLE (some renderers
+       throttle rAF heavily), drive a frame directly so the UI never looks
+       dead. Hidden pages render nothing (correct — saves CPU). */
+    setInterval(() => {
+      if (running && document.visibilityState === "visible" &&
+          performance.now() - lastFrameMs > 1200) {
+        lastFrameMs = performance.now();
+        loop(performance.now());
+      }
+    }, 500);
   }
 
   window.PDS.graphics = { init, spawnPacket, FPS, visual };
